@@ -10,15 +10,20 @@ class BlockchainService {
             const amountInWei = blockchain_1.web3.utils.toWei(amount, 'ether');
             // Get the nonce for the from address
             const nonce = await blockchain_1.web3.eth.getTransactionCount(fromAddress, 'latest');
-            // Estimate gas price
-            const gasPrice = await blockchain_1.web3.eth.getGasPrice();
+            // Get current gas price and increase it for faster transactions
+            const currentGasPrice = await blockchain_1.web3.eth.getGasPrice();
+            // Increase gas price by 20% for faster processing
+            const fastGasPrice = Math.floor(Number(currentGasPrice) * 1.2).toString();
             // Create transaction object
             const txObject = {
                 from: fromAddress,
                 to: toAddress,
                 value: amountInWei,
-                gas: 21000, // Standard gas limit for ETH transfers
-                gasPrice: gasPrice,
+                // Standard gas limit for ETH transfers is 21000
+                // For token transfers or more complex operations, this would be higher
+                gas: 21000,
+                // Use faster gas price
+                gasPrice: fastGasPrice,
                 nonce: nonce
             };
             // Sign the transaction

@@ -6,8 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
-const buyController_1 = require("./controllers/buyController");
-const sellController_1 = require("./controllers/sellController");
 const rateLimit_1 = require("./middleware/rateLimit");
 const errorHandler_1 = require("./utils/errorHandler");
 const api_1 = __importDefault(require("./routes/api"));
@@ -19,9 +17,7 @@ app.use((0, cors_1.default)()); // Enable CORS
 app.use(express_1.default.json()); // Parse JSON request bodies
 app.use(rateLimit_1.apiRateLimiter); // Apply rate limiting
 // Define routes
-app.post('/api/buy', buyController_1.BuyController.buyRequest);
-app.post('/api/sell', sellController_1.SellController.sellRequest);
-app.use('/api', api_1.default);
+app.use('/api', api_1.default); // Register all API routes
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });

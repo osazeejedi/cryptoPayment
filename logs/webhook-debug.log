@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-03-02T05:36:10.270Z",
+  "method": "POST",
+  "url": "/log",
+  "headers": {
+    "accept": "application/json, text/plain, */*",
+    "content-type": "application/json",
+    "x-test-header": "test-value",
+    "user-agent": "axios/1.8.1",
+    "content-length": "54",
+    "accept-encoding": "gzip, compress, deflate, br",
+    "host": "localhost:3000",
+    "connection": "keep-alive"
+  },
+  "body": {
+    "test": "data",
+    "timestamp": "2025-03-02T05:36:10.213Z"
+  },
+  "query": {},
+  "params": {},
+  "ip": "::1"
+}
+---
+{
+  "timestamp": "2025-03-02T05:36:10.929Z",
+  "method": "POST",
+  "url": "/log",
+  "headers": {
+    "host": "ae85-105-112-228-150.ngrok-free.app",
+    "user-agent": "axios/1.8.1",
+    "content-length": "54",
+    "accept": "application/json, text/plain, */*",
+    "accept-encoding": "gzip, compress, deflate, br",
+    "content-type": "application/json",
+    "x-forwarded-for": "105.112.228.150",
+    "x-forwarded-host": "ae85-105-112-228-150.ngrok-free.app",
+    "x-forwarded-proto": "https",
+    "x-test-header": "test-value"
+  },
+  "body": {
+    "test": "data",
+    "timestamp": "2025-03-02T05:36:10.285Z"
+  },
+  "query": {},
+  "params": {},
+  "ip": "105.112.228.150"
+}
+---

@@ -1,0 +1,201 @@
+import axios from 'axios';
+import { config } from '../config/env';
+
+async function testKorapayConnection() {
+  try {
+    console.log('Testing Korapay API connection...');
+    console.log('Using secret key:', config.payment.korapay.secretKey.substring(0, 10) + '...');
+    
+    // Try with Bearer token format
+    console.log('Attempting with Bearer token format...');
+    try {
+      const response = await axios.get(
+        'https://api.korapay.com/merchant/api/v1/misc/banks',
+        {
+          headers: {
+            'Authorization': `Bearer ${config.payment.korapay.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Connection successful with Bearer token!');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      return;
+    } catch (error) {
+      console.error('Bearer token attempt failed');
+      if (axios.isAxiosError(error)) {
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+      }
+    }
+    
+    // Try with just the token (no Bearer prefix)
+    console.log('\nAttempting with just the token (no Bearer prefix)...');
+    try {
+      const response = await axios.get(
+        'https://api.korapay.com/merchant/api/v1/misc/banks',
+        {
+          headers: {
+            'Authorization': config.payment.korapay.secretKey,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Connection successful with just the token!');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      return;
+    } catch (error) {
+      console.error('Just token attempt failed');
+      if (axios.isAxiosError(error)) {
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+      }
+    }
+    
+    // Try with Basic auth
+    console.log('\nAttempting with Basic auth...');
+    try {
+      const response = await axios.get(
+        'https://api.korapay.com/merchant/api/v1/misc/banks',
+        {
+          headers: {
+            'Authorization': `Basic ${Buffer.from(config.payment.korapay.secretKey + ':').toString('base64')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Connection successful with Basic auth!');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      return;
+    } catch (error) {
+      console.error('Basic auth attempt failed');
+      if (axios.isAxiosError(error)) {
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+      }
+    }
+    
+    // Add this to your test function
+    console.log('\nAttempting with test environment URL...');
+    try {
+      const response = await axios.get(
+        'https://api-test.korapay.com/merchant/api/v1/misc/banks',
+        {
+          headers: {
+            'Authorization': `Bearer ${config.payment.korapay.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Connection successful with test environment URL!');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      return;
+    } catch (error) {
+      console.error('Test environment URL attempt failed');
+      if (axios.isAxiosError(error)) {
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+      }
+    }
+    
+    // Add this to your test function
+    console.log('\nAttempting with alternative key (no quotes)...');
+    try {
+      const altKey = process.env.KORAPAY_SECRET_KEY_ALT;
+      console.log('Using alt key:', altKey?.substring(0, 10) + '...');
+      
+      const response = await axios.get(
+        'https://api.korapay.com/merchant/api/v1/misc/banks',
+        {
+          headers: {
+            'Authorization': `Bearer ${altKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Connection successful with alternative key!');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      return;
+    } catch (error) {
+      console.error('Alternative key attempt failed');
+      if (axios.isAxiosError(error)) {
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+      }
+    }
+    
+    // Add this to your test function based on documentation
+    console.log('\nAttempting with method from documentation...');
+    try {
+      // This is a placeholder - replace with the actual method from documentation
+      const response = await axios.get(
+        'https://api.korapay.com/merchant/api/v1/misc/banks',
+        {
+          headers: {
+            'Authorization': `Bearer ${config.payment.korapay.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Connection successful with documentation method!');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      return;
+    } catch (error) {
+      console.error('Documentation method attempt failed');
+      if (axios.isAxiosError(error)) {
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+      }
+    }
+    
+    // Add this to your test function
+    console.log('\nAttempting with public key...');
+    try {
+      const response = await axios.get(
+        'https://api.korapay.com/merchant/api/v1/misc/banks',
+        {
+          headers: {
+            'Authorization': `Bearer ${config.payment.korapay.publicKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Connection successful with public key!');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      return;
+    } catch (error) {
+      console.error('Public key attempt failed');
+      if (axios.isAxiosError(error)) {
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+      }
+    }
+    
+    console.error('All authentication attempts failed');
+  } catch (error) {
+    console.error('Connection failed!');
+    if (axios.isAxiosError(error)) {
+      console.error('Status:', error.response?.status);
+      console.error('Data:', error.response?.data);
+      console.error('Message:', error.message);
+    } else {
+      console.error('Error:', error);
+    }
+  }
+}
+
+testKorapayConnection(); 

@@ -46,4 +46,39 @@ export class PriceController {
       });
     }
   }
+
+  static async convertNairaToCrypto(req: Request, res: Response): Promise<void> {
+    try {
+      const { naira_amount, crypto_type } = req.query;
+      
+      // Validate request
+      if (!naira_amount || !crypto_type) {
+        res.status(400).json({ 
+          status: 'error', 
+          message: 'Missing required parameters: naira_amount and crypto_type' 
+        });
+        return;
+      }
+      
+      // Convert Naira to crypto
+      const cryptoAmount = await PriceService.convertNairaToCrypto(
+        naira_amount.toString(),
+        crypto_type.toString()
+      );
+      
+      res.status(200).json({
+        status: 'success',
+        naira_amount: naira_amount.toString(),
+        crypto_type: crypto_type.toString().toUpperCase(),
+        crypto_amount: cryptoAmount,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Conversion error:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: error instanceof Error ? error.message : 'An unknown error occurred' 
+      });
+    }
+  }
 } 

@@ -26,8 +26,8 @@ async function testSellRequest() {
             user_id: "test_user_1",
             amount: "0.0001",
             crypto_type: "ETH",
-            wallet_address: "0x2fE6Cee6a48a710Fb7EEE36A9C9C23DA7C756571",
-            wallet_private_key: "3323616e9f3bab154b9e6691ea75a89f78d9413aec204ed8e05eb37b356f30fe",
+            wallet_address: "0x2A69d89043948999bD327413b7B4f91d47018873",
+            wallet_private_key: "ce81f1cdf3183fd9d6b205ae9e72feaa3928eb022de20a1e5a2b4a856641f390",
             balance: "0.009"
         });
         console.log('Sell Request Response:', response.data);

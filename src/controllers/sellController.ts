@@ -1,60 +1,254 @@
 import { Request, Response } from 'express';
-import { PriceService } from '../services/priceService';
+import { KorapayService } from '../services/korapayService';
 import { BlockchainService } from '../services/blockchainService';
-import { WalletService } from '../services/walletService';
+import { PriceService } from '../services/priceService';
+import { DatabaseService } from '../services/databaseService';
+import { config } from '../../config/env';
 
 export class SellController {
+  /**
+   * Verify a bank account
+   */
+  static async verifyBankAccount(req: Request, res: Response): Promise<void> {
+    try {
+      console.log("Received bank account verification request:", JSON.stringify(req.body, null, 2));
+      
+      const { account_number, bank_code } = req.body;
+      
+      if (!account_number || !bank_code) {
+        res.status(400).json({ 
+          status: 'error', 
+          message: 'Account number and bank code are required' 
+        });
+        return;
+      }
+      
+      // Verify bank account
+      const accountDetails = await KorapayService.verifyBankAccount(
+        account_number,
+        bank_code
+      );
+      
+      res.status(200).json({
+        status: 'success',
+        data: accountDetails
+      });
+    } catch (error) {
+      console.error('Error verifying bank account:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to verify bank account' 
+      });
+    }
+  }
+  
+  /**
+   * Get list of supported banks
+   */
+  static async getBanks(req: Request, res: Response): Promise<void> {
+    try {
+      // Get banks
+      const banks = await KorapayService.getBanks();
+      
+      res.status(200).json({
+        status: 'success',
+        data: banks
+      });
+    } catch (error) {
+      console.error('Error getting banks:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to get banks' 
+      });
+    }
+  }
+  
+  /**
+   * Process a sell request
+   */
   static async sellRequest(req: Request, res: Response): Promise<void> {
     try {
+      console.log('=== SELL REQUEST RECEIVED ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
       const { 
         user_id, 
         amount, 
         crypto_type, 
-        wallet_address, 
-        wallet_private_key,
-        balance 
+        private_key, 
+        bank_account_number, 
+        bank_code,
+        account_name
       } = req.body;
       
       // Validate request
-      if (!user_id || !amount || !crypto_type || !wallet_address || !wallet_private_key || !balance) {
-        res.status(400).json({ status: 'error', message: 'Missing required fields' });
+      if (!user_id || !amount || !crypto_type || !private_key || !bank_account_number || !bank_code) {
+        console.error('Missing required parameters');
+        res.status(400).json({ 
+          status: 'error', 
+          message: 'Missing required parameters' 
+        });
         return;
       }
       
-      // Check if user has sufficient balance
-      const hasBalance = WalletService.checkUserBalance(balance, amount);
-      if (!hasBalance) {
-        res.status(400).json({ status: 'error', message: 'Insufficient funds in user wallet' });
+      // Check if user exists
+      const user = await DatabaseService.getUserById(user_id);
+      if (!user) {
+        console.error('User not found:', user_id);
+        res.status(404).json({ 
+          status: 'error', 
+          message: 'User not found' 
+        });
         return;
       }
       
-      // Convert crypto to Naira
-      const nairaValue = await PriceService.convertCryptoToNaira(amount, crypto_type);
+      // Get wallet address from private key
+      const walletAddress = BlockchainService.getAddressFromPrivateKey(private_key);
+      
+      // Create a transaction record
+      const transaction = await DatabaseService.createTransaction({
+        user_id,
+        transaction_type: 'sell',
+        status: 'pending',
+        amount,
+        crypto_type,
+        from_address: walletAddress,
+        to_address: config.blockchain.companyWallet.address,
+        fiat_currency: 'NGN',
+        fiat_amount: (parseFloat(amount) * 1000).toString(), // Example conversion rate
+        notes: `Bank payout to ${bank_account_number} (${account_name})`
+      });
+      
+      if (!transaction) {
+        console.error('Failed to create transaction record');
+        res.status(500).json({ 
+          status: 'error', 
+          message: 'Failed to create transaction record' 
+        });
+        return;
+      }
       
       // Process the sell request
-      const txHash = await BlockchainService.processSellRequest(
-        user_id, 
-        amount, 
-        crypto_type, 
-        nairaValue,
-        wallet_address,
-        wallet_private_key
+      console.log('Processing sell request...');
+      
+      // 1. Transfer crypto to company wallet
+      console.log('Transferring crypto to company wallet...');
+      const txHash = await BlockchainService.transferFromUserToCompany(
+        private_key,
+        amount,
+        crypto_type
       );
       
-      // Return response
+      // Update transaction with blockchain hash
+      await DatabaseService.updateTransactionStatus(
+        transaction.id,
+        'completed',
+        txHash
+      );
+      
+      // 2. Process bank payout
+      console.log('Processing bank payout...');
+      const payoutResponse = await KorapayService.processBankPayout({
+        amount: transaction.fiat_amount || '0',
+        bank_code,
+        account_number: bank_account_number,
+        account_name: account_name || '',
+        narration: `Crypto sell: ${amount} ${crypto_type}`,
+        reference: `sell_${transaction.id}`
+      });
+      
+      // Update transaction with payment reference
+      await DatabaseService.updateTransaction(transaction.id, {
+        payment_reference: payoutResponse.reference,
+        notes: `${transaction.notes} | Payout ref: ${payoutResponse.reference}`
+      });
+      
+      // Return success response
       res.status(200).json({
         status: 'success',
-        transaction_hash: txHash,
-        crypto_type,
-        amount,
-        naira_value: nairaValue,
-        timestamp: new Date().toISOString()
+        message: 'Sell request processed successfully',
+        data: {
+          transaction_id: transaction.id,
+          blockchain_tx_hash: txHash,
+          payout_reference: payoutResponse.reference,
+          amount,
+          crypto_type,
+          fiat_amount: transaction.fiat_amount,
+          fiat_currency: transaction.fiat_currency
+        }
       });
     } catch (error) {
-      console.error('Sell request error:', error);
+      console.error('Error processing sell request:', error);
       res.status(500).json({ 
         status: 'error', 
-        message: error instanceof Error ? error.message : 'An unknown error occurred' 
+        message: error instanceof Error ? error.message : 'Failed to process sell request' 
+      });
+    }
+  }
+  
+  /**
+   * Check the status of a sell transaction
+   */
+  static async verifySellTransaction(req: Request, res: Response): Promise<void> {
+    try {
+      const { transaction_id } = req.params;
+      
+      if (!transaction_id) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Transaction ID is required'
+        });
+        return;
+      }
+      
+      // Get transaction from database
+      const transaction = await DatabaseService.getTransactionById(transaction_id);
+      
+      if (!transaction) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Transaction not found'
+        });
+        return;
+      }
+      
+      // If transaction has a payment reference, verify with Korapay
+      if (transaction.payment_reference) {
+        const payoutStatus = await KorapayService.checkPayoutStatus(transaction.payment_reference);
+        
+        res.status(200).json({
+          status: 'success',
+          data: {
+            transaction_id: transaction.id,
+            blockchain_tx_hash: transaction.blockchain_tx_hash,
+            payout_reference: transaction.payment_reference,
+            payout_status: payoutStatus.status,
+            transaction_status: transaction.status,
+            amount: transaction.amount,
+            crypto_type: transaction.crypto_type,
+            fiat_amount: transaction.fiat_amount,
+            fiat_currency: transaction.fiat_currency,
+            created_at: transaction.created_at
+          }
+        });
+      } else {
+        res.status(200).json({
+          status: 'success',
+          data: {
+            transaction_id: transaction.id,
+            blockchain_tx_hash: transaction.blockchain_tx_hash,
+            transaction_status: transaction.status,
+            amount: transaction.amount,
+            crypto_type: transaction.crypto_type,
+            created_at: transaction.created_at
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error verifying sell transaction:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to verify sell transaction'
       });
     }
   }

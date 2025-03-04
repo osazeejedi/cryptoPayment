@@ -114,4 +114,29 @@ export class PriceService {
     
     return price;
   }
+
+  /**
+   * Get current price for a cryptocurrency
+   * @param cryptoType Type of cryptocurrency (ETH, BTC, etc.)
+   * @returns Current price in fiat currency
+   */
+  static async getCurrentPrice(cryptoType: string): Promise<number> {
+    try {
+      // You can implement actual price fetching logic here
+      // For now, returning mock prices
+      switch (cryptoType.toUpperCase()) {
+        case 'BTC':
+          return 50000;
+        case 'ETH':
+          return 3000;
+        case 'USDT':
+          return 1;
+        default:
+          throw new Error(`Unsupported crypto type: ${cryptoType}`);
+      }
+    } catch (error) {
+      console.error(`Error getting price for ${cryptoType}:`, error);
+      throw new Error(`Failed to get price for ${cryptoType}`);
+    }
+  }
 } 

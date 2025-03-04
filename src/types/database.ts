@@ -35,4 +35,24 @@ export interface Transaction {
   payment_method?: string;
   notes?: string;
   created_at: string;
+}
+
+interface TransactionData {
+  id?: string;
+  user_id: string;
+  amount: string;
+  cryptoAmount: string;
+  cryptoType: string;
+  walletAddress: string;
+  status: string;
+  paymentMethod: string;
+  blockchainTxHash?: string;
+  paymentReference?: string;
+  notes?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  transaction_type?: string;
+  to_address?: string;
+  fiat_amount?: string;
+  fiat_currency?: string;
 } 

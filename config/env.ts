@@ -51,6 +51,10 @@ export const config = {
     },
     blockCypherToken: process.env.BLOCKCYPHER_TOKEN || '',
     network: process.env.BLOCKCHAIN_NETWORK || 'sepolia', // 'mainnet' or 'sepolia'
+    tokens: {
+      usdt: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', // Sepolia USDT address
+      usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'  // Sepolia USDC address
+    }
   },
   api: {
     coingeckoApiKey: process.env.COINGECKO_API_KEY || '',

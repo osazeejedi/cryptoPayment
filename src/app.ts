@@ -12,6 +12,8 @@ import transferRoutes from './routes/transferRoutes';
 import swapRoutes from './routes/swapRoutes';
 import authRoutes from './routes/authRoutes';
 import walletRoutes from './routes/walletRoutes';
+import { config } from '../config/env';
+import { TransactionMonitor } from './jobs/transactionMonitor';
 
 // Create Express application
 const app = express();
@@ -44,5 +46,18 @@ app.get('/health', (req, res) => {
 
 // Error handling middleware
 app.use(errorHandler);
+
+// Start server
+const PORT = config.server.port;
+
+// Only start the server if this file is run directly
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    
+    // Start transaction monitor
+    TransactionMonitor.startMonitoring();
+  });
+}
 
 export default app; 

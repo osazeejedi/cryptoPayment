@@ -36,7 +36,7 @@ export async function recoverPendingTransactions(): Promise<void> {
           console.log(`Payment ${transaction.payment_reference} successful, processing crypto transfer`);
           
           // Update transaction status to processing
-          await DatabaseService.updateTransactionStatus(transaction.id, 'processing');
+          await DatabaseService.updateTransaction(transaction.id, { status: 'processing' });
           
           try {
             // Transfer crypto to user wallet
@@ -47,16 +47,19 @@ export async function recoverPendingTransactions(): Promise<void> {
             );
             
             // Update transaction with blockchain hash and completed status
-            await DatabaseService.updateTransactionStatus(transaction.id, 'completed', txHash);
+            await DatabaseService.updateTransaction(transaction.id, { 
+              status: 'completed', 
+              blockchainTxHash: txHash 
+            });
             
             console.log(`Crypto transfer completed for transaction ${transaction.id}, hash: ${txHash}`);
           } catch (transferError) {
             console.error(`Error transferring crypto for transaction ${transaction.id}:`, transferError);
-            await DatabaseService.updateTransactionStatus(transaction.id, 'failed');
+            await DatabaseService.updateTransaction(transaction.id, { status: 'failed' });
           }
         } else if (paymentStatus.status === 'failed') {
           console.log(`Payment ${transaction.payment_reference} failed`);
-          await DatabaseService.updateTransactionStatus(transaction.id, 'failed');
+          await DatabaseService.updateTransaction(transaction.id, { status: 'failed' });
         } else {
           console.log(`Payment ${transaction.payment_reference} is still pending`);
         }

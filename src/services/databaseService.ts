@@ -2,6 +2,26 @@ import { supabase } from '../../config/supabase';
 import { User, Transaction, Wallet } from '../types/database';
 import { v4 as uuidv4 } from 'uuid';
 
+interface TransactionData {
+  id?: string;
+  amount: string;
+  cryptoAmount: string;
+  cryptoType: string;
+  walletAddress: string;
+  status: string;
+  paymentMethod: string;
+  blockchainTxHash?: string;
+  paymentReference?: string;
+  notes?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  user_id: string;
+  transaction_type?: string;
+  fiat_amount?: string;
+  fiat_currency?: string;
+  to_address?: string;
+}
+
 export class DatabaseService {
   /**
    * Get user by ID
@@ -116,31 +136,160 @@ export class DatabaseService {
   
   /**
    * Create a new transaction
-   * @param transaction Transaction data
-   * @returns Created transaction or null
    */
-  static async createTransaction(
-    transaction: Omit<Transaction, 'id' | 'created_at'>
-  ): Promise<Transaction | null> {
+  static async createTransaction(data: TransactionData): Promise<any> {
     try {
-      console.log('Creating transaction:', transaction);
-      
-      const { data, error } = await supabase
+      // Map from TransactionData to database schema
+      const dbData = {
+        user_id: data.user_id,
+        transaction_type: data.transaction_type || 'buy',
+        status: data.status,
+        amount: data.amount,
+        crypto_type: data.cryptoType,
+        to_address: data.walletAddress || data.to_address,
+        payment_method: data.paymentMethod,
+        fiat_amount: data.fiat_amount,
+        fiat_currency: data.fiat_currency
+      };
+
+      const { data: transaction, error } = await supabase
         .from('transactions')
-        .insert(transaction)
-        .select('*')
+        .insert(dbData)
+        .select()
         .single();
+
+      if (error) throw error;
       
-      if (error) {
-        console.error('Error creating transaction:', error);
-        throw error;
-      }
-      
-      return data;
+      // Map from database schema to TransactionData
+      return {
+        id: transaction.id,
+        amount: transaction.amount,
+        cryptoAmount: transaction.amount,
+        cryptoType: transaction.crypto_type,
+        walletAddress: transaction.to_address,
+        status: transaction.status,
+        paymentMethod: transaction.payment_method,
+        blockchainTxHash: transaction.blockchain_tx_hash,
+        paymentReference: transaction.payment_reference,
+        notes: transaction.notes,
+        createdAt: transaction.created_at,
+        updatedAt: transaction.updated_at
+      };
     } catch (error) {
       console.error('Error creating transaction:', error);
       return null;
     }
+  }
+  
+  /**
+   * Get transaction by ID
+   */
+  static async getTransaction(id: string) {
+    const { data: transaction, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Error getting transaction:', error);
+      return null;
+    }
+    
+    return {
+      id: transaction.id,
+      user_id: transaction.user_id,
+      amount: transaction.amount,
+      cryptoAmount: transaction.amount,
+      cryptoType: transaction.crypto_type,
+      walletAddress: transaction.to_address,
+      status: transaction.status,
+      paymentMethod: transaction.payment_method,
+      blockchainTxHash: transaction.blockchain_tx_hash,
+      paymentReference: transaction.payment_reference,
+      notes: transaction.notes,
+      createdAt: transaction.created_at,
+      updatedAt: transaction.updated_at,
+      transaction_type: transaction.transaction_type,
+      fiat_amount: transaction.fiat_amount,
+      fiat_currency: transaction.fiat_currency
+    };
+  }
+  
+  /**
+   * Get transaction by reference (same as ID in this case)
+   */
+  static async getTransactionByReference(reference: string) {
+    return this.getTransaction(reference);
+  }
+  
+  /**
+   * Update transaction
+   */
+  static async updateTransaction(id: string, data: Partial<TransactionData>) {
+    const updateData: any = {};
+    
+    if (data.status) updateData.status = data.status;
+    if (data.blockchainTxHash) updateData.blockchain_tx_hash = data.blockchainTxHash;
+    if (data.paymentReference) updateData.payment_reference = data.paymentReference;
+    if (data.notes) updateData.notes = data.notes;
+    
+    const { data: transaction, error } = await supabase
+      .from('transactions')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating transaction:', error);
+      throw new Error('Failed to update transaction');
+    }
+    
+    return {
+      id: transaction.id,
+      amount: transaction.amount,
+      cryptoAmount: transaction.crypto_amount,
+      cryptoType: transaction.crypto_type,
+      walletAddress: transaction.wallet_address,
+      status: transaction.status,
+      paymentMethod: transaction.payment_method,
+      blockchainTxHash: transaction.blockchain_tx_hash,
+      paymentReference: transaction.payment_reference,
+      notes: transaction.notes,
+      createdAt: transaction.created_at,
+      updatedAt: transaction.updated_at
+    };
+  }
+  
+  /**
+   * Get transactions by status
+   */
+  static async getTransactionsByStatus(status: string) {
+    const { data: transactions, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('status', status);
+    
+    if (error) {
+      console.error('Error getting transactions by status:', error);
+      return [];
+    }
+    
+    return transactions.map(transaction => ({
+      id: transaction.id,
+      amount: transaction.amount,
+      cryptoAmount: transaction.crypto_amount,
+      cryptoType: transaction.crypto_type,
+      walletAddress: transaction.wallet_address,
+      status: transaction.status,
+      paymentMethod: transaction.payment_method,
+      blockchainTxHash: transaction.blockchain_tx_hash,
+      paymentReference: transaction.payment_reference,
+      notes: transaction.notes,
+      createdAt: transaction.created_at,
+      updatedAt: transaction.updated_at
+    }));
   }
   
   /**
@@ -168,27 +317,6 @@ export class DatabaseService {
   }
   
   /**
-   * Get transaction by ID
-   * @param transactionId Transaction ID
-   * @returns Transaction object or null
-   */
-  static async getTransactionById(transactionId: string): Promise<Transaction | null> {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('id', transactionId)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error getting transaction by ID:', error);
-      return null;
-    }
-  }
-  
-  /**
    * Get transaction by blockchain hash
    * @param txHash Blockchain transaction hash
    * @returns Transaction object or null
@@ -205,89 +333,6 @@ export class DatabaseService {
       return data;
     } catch (error) {
       console.error('Error getting transaction by hash:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Update transaction status
-   * @param transactionId Transaction ID
-   * @param status New status
-   * @param blockchainTxHash Optional blockchain transaction hash
-   * @returns Updated transaction or null
-   */
-  static async updateTransactionStatus(
-    transactionId: string,
-    status: 'pending' | 'processing' | 'completed' | 'failed',
-    blockchainTxHash?: string
-  ): Promise<Transaction | null> {
-    try {
-      const updateData: Partial<Transaction> = { 
-        status: status as 'pending' | 'completed' | 'failed' 
-      };
-      
-      if (blockchainTxHash) {
-        updateData.blockchain_tx_hash = blockchainTxHash;
-      }
-      
-      const { data, error } = await supabase
-        .from('transactions')
-        .update(updateData)
-        .eq('id', transactionId)
-        .select('*')
-        .single();
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error updating transaction status:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Update a transaction with additional data
-   * @param transactionId Transaction ID
-   * @param updateData Data to update
-   * @returns Updated transaction or null
-   */
-  static async updateTransaction(
-    transactionId: string, 
-    updateData: Partial<Transaction>
-  ): Promise<Transaction | null> {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .update(updateData)
-        .eq('id', transactionId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error updating transaction:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Get transaction by payment reference
-   * @param reference Payment reference
-   * @returns Transaction object or null
-   */
-  static async getTransactionByReference(reference: string): Promise<Transaction | null> {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('payment_reference', reference)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error getting transaction by reference:', error);
       return null;
     }
   }

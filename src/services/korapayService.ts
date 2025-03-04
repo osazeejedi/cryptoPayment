@@ -1,6 +1,9 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import { config } from '../../config/env';
+import { Request } from 'express';
+import { BlockchainService } from './blockchainService';
+import { DatabaseService } from './databaseService';
 
 interface KorapayDirectChargeResponse {
   status: boolean;
@@ -28,6 +31,16 @@ interface KorapayVerifyPaymentResponse {
     payment_method: string;
     paid_at: string;
   };
+}
+
+interface PaymentInitData {
+  amount: string;
+  currency: string;
+  reference: string;
+  redirectUrl: string;
+  customerEmail: string;
+  customerName: string;
+  metadata: any;
 }
 
 export class KorapayService {
@@ -643,51 +656,95 @@ export class KorapayService {
   }
 
   /**
-   * Initialize a payment
-   * @param paymentData Payment initialization data
-   * @returns Payment initialization response
+   * Initialize payment with Korapay
    */
-  static async initializePayment(paymentData: {
-    amount: string;
-    currency: string;
-    reference: string;
-    customer: {
-      email: string;
-      name: string;
-    };
-    notification_url: string;
-    metadata: Record<string, any>;
-  }): Promise<{
-    checkout_url: string;
-    reference: string;
-  }> {
+  static async initializePayment(data: PaymentInitData) {
     try {
       const response = await axios.post(
-        'https://api.korapay.com/merchant/api/v1/charges/initialize',
+        `${this.BASE_URL}/charges/initialize`,
         {
-          ...paymentData,
-          redirect_url: `${config.app.baseUrl}/payment/success`,
-          channels: ['card', 'bank_transfer'],
+          amount: data.amount,
+          currency: data.currency,
+          reference: data.reference,
+          notification_url: config.payment.korapay.callbackUrl,
+          redirect_url: data.redirectUrl,
+          customer: {
+            email: data.customerEmail,
+            name: data.customerName
+          },
+          metadata: data.metadata
         },
         {
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${config.payment.korapay.secretKey}`
+            'Authorization': `Bearer ${this.SECRET_KEY}`,
+            'Content-Type': 'application/json'
           }
         }
       );
       
-      if (response.data.status !== true) {
-        throw new Error(`Payment initialization failed: ${response.data.message}`);
-      }
-      
-      return {
-        checkout_url: response.data.data.checkout_url,
-        reference: response.data.data.reference
-      };
+      return response.data.data;
     } catch (error) {
       console.error('Error initializing payment:', error);
-      throw new Error(error instanceof Error ? error.message : 'Failed to initialize payment');
+      throw new Error('Failed to initialize payment');
+    }
+  }
+
+  /**
+   * Verify webhook signature
+   */
+  static verifyWebhook(req: Request): boolean {
+    try {
+      const signature = req.headers['x-korapay-signature'] as string;
+      if (!signature) {
+        return false;
+      }
+      
+      const payload = JSON.stringify(req.body);
+      const hash = crypto
+        .createHmac('sha256', this.SECRET_KEY)
+        .update(payload)
+        .digest('hex');
+      
+      return hash === signature;
+    } catch (error) {
+      console.error('Error verifying webhook:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * Process successful payment
+   */
+  static async processSuccessfulPayment(reference: string): Promise<boolean> {
+    try {
+      // Get transaction from database
+      const transaction = await DatabaseService.getTransactionByReference(reference);
+      if (!transaction) {
+        console.error(`Transaction not found for reference: ${reference}`);
+        return false;
+      }
+      
+      // Update transaction status
+      await DatabaseService.updateTransaction(transaction.id, { status: 'paid' });
+      
+      // Transfer crypto to customer
+      const txHash = await BlockchainService.transferCrypto(
+        transaction.walletAddress,
+        transaction.cryptoAmount,
+        transaction.cryptoType
+      );
+      
+      // Update transaction with blockchain tx hash
+      await DatabaseService.updateTransaction(transaction.id, { 
+        status: 'completed',
+        blockchainTxHash: txHash
+      });
+      
+      console.log(`Crypto transfer completed: ${txHash}`);
+      return true;
+    } catch (error) {
+      console.error('Error processing successful payment:', error);
+      return false;
     }
   }
 } 

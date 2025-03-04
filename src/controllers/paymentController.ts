@@ -5,6 +5,7 @@ import { BuyController } from './buyController';
 import { BlockchainService } from '../services/blockchainService';
 import { DatabaseService } from '../services/databaseService';
 import { config } from '../../config/env';
+import { PaymentInitData, KorapayPaymentInitData } from '../types/payment';
 
 export class PaymentController {
   /**
@@ -67,8 +68,8 @@ export class PaymentController {
         const buyRequest = {
           user_id: email,
           amount: cryptoAmount,
-          crypto_type: crypto_type.toString(),
-          wallet_address
+          cryptoType: crypto_type.toString(),
+          walletAddress: wallet_address
         };
         
         // Process the buy request using the correct method
@@ -593,11 +594,12 @@ export class PaymentController {
         transaction_type: 'buy',
         status: 'pending',
         amount: crypto_amount,
-        crypto_type,
-        to_address: wallet_address,
+        cryptoAmount: crypto_amount,
+        cryptoType: crypto_type,
+        walletAddress: wallet_address,
+        paymentMethod: payment_method,
         fiat_amount: amount,
-        fiat_currency: 'NGN',
-        payment_method
+        fiat_currency: 'NGN'
       });
       
       if (!transaction) {
@@ -608,27 +610,28 @@ export class PaymentController {
         return;
       }
       
-      // Initialize payment with Korapay
-      const paymentData = await KorapayService.initializePayment({
+      // Create payload in the format expected by KorapayService
+      const paymentInitData: PaymentInitData = {
         amount,
         currency: 'NGN',
         reference: `buy_${transaction.id}`,
-        customer: {
-          email,
-          name: name || email.split('@')[0]
-        },
-        notification_url: config.payment.korapay.callbackUrl,
+        redirectUrl: config.payment.korapay.callbackUrl || '',
+        customerEmail: email,
+        customerName: name || email.split('@')[0],
         metadata: {
           transaction_id: transaction.id,
           crypto_amount,
           crypto_type,
           wallet_address
         }
-      });
+      };
       
-      // Update transaction with payment reference
+      // Initialize payment with Korapay
+      const paymentData = await KorapayService.initializePayment(paymentInitData);
+      
+      // Update transaction with payment reference from Korapay
       await DatabaseService.updateTransaction(transaction.id, {
-        payment_reference: paymentData.reference
+        paymentReference: paymentData.reference
       });
       
       // Return success response with checkout URL
@@ -686,10 +689,10 @@ export class PaymentController {
             payment_status: paymentStatus.status,
             transaction_status: transaction.status,
             transaction_id: transaction.id,
-            blockchain_tx_hash: transaction.blockchain_tx_hash,
-            amount: transaction.fiat_amount,
-            crypto_amount: transaction.amount,
-            crypto_type: transaction.crypto_type
+            blockchainTxHash: transaction.blockchainTxHash,
+            amount: transaction.amount,
+            crypto_amount: transaction.cryptoAmount,
+            cryptoType: transaction.cryptoType
           }
         });
       } catch (error) {
@@ -702,10 +705,10 @@ export class PaymentController {
             payment_status: 'unknown',
             transaction_status: transaction.status,
             transaction_id: transaction.id,
-            blockchain_tx_hash: transaction.blockchain_tx_hash,
-            amount: transaction.fiat_amount,
-            crypto_amount: transaction.amount,
-            crypto_type: transaction.crypto_type,
+            blockchainTxHash: transaction.blockchainTxHash,
+            amount: transaction.amount,
+            crypto_amount: transaction.cryptoAmount,
+            cryptoType: transaction.cryptoType,
             message: 'Could not verify payment status with provider, showing last known status'
           }
         });

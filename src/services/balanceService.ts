@@ -109,7 +109,7 @@ export class BalanceService {
       
       if (cryptoType === 'ETH') {
         // Get ETH balance
-        const provider = BlockchainService.getProvider('ETH');
+        const provider = BlockchainService.getEthersProvider('ETH');
         const balance = await provider.getBalance(address);
         return ethers.formatEther(balance);
       } else if (cryptoType === 'USDT') {

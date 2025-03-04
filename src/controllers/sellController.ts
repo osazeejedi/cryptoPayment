@@ -4,6 +4,7 @@ import { BlockchainService } from '../services/blockchainService';
 import { PriceService } from '../services/priceService';
 import { DatabaseService } from '../services/databaseService';
 import { config } from '../../config/env';
+import { handleError } from '../utils/errorHandler';
 
 export class SellController {
   /**
@@ -105,18 +106,20 @@ export class SellController {
       // Get wallet address from private key
       const walletAddress = BlockchainService.getAddressFromPrivateKey(private_key);
       
+      // Calculate fiat amount based on crypto amount
+      const cryptoPrice = await PriceService.getCurrentPrice(crypto_type);
+      const fiatAmount = (parseFloat(amount) * cryptoPrice).toString();
+      
       // Create a transaction record
       const transaction = await DatabaseService.createTransaction({
-        user_id,
-        transaction_type: 'sell',
-        status: 'pending',
+        user_id: user_id || 'anonymous',
         amount,
-        crypto_type,
-        from_address: walletAddress,
-        to_address: config.blockchain.companyWallet.address,
-        fiat_currency: 'NGN',
-        fiat_amount: (parseFloat(amount) * 1000).toString(), // Example conversion rate
-        notes: `Bank payout to ${bank_account_number} (${account_name})`
+        cryptoAmount: amount,
+        cryptoType: crypto_type,
+        walletAddress,
+        status: 'pending',
+        paymentMethod: 'bank_transfer',
+        transaction_type: 'sell'
       });
       
       if (!transaction) {
@@ -140,16 +143,15 @@ export class SellController {
       );
       
       // Update transaction with blockchain hash
-      await DatabaseService.updateTransactionStatus(
-        transaction.id,
-        'completed',
-        txHash
-      );
+      await DatabaseService.updateTransaction(transaction.id, {
+        status: 'completed',
+        blockchainTxHash: txHash
+      });
       
       // 2. Process bank payout
       console.log('Processing bank payout...');
       const payoutResponse = await KorapayService.processBankPayout({
-        amount: transaction.fiat_amount || '0',
+        amount: fiatAmount,
         bank_code,
         account_number: bank_account_number,
         account_name: account_name || '',
@@ -159,8 +161,10 @@ export class SellController {
       
       // Update transaction with payment reference
       await DatabaseService.updateTransaction(transaction.id, {
-        payment_reference: payoutResponse.reference,
-        notes: `${transaction.notes} | Payout ref: ${payoutResponse.reference}`
+        status: 'completed',
+        blockchainTxHash: txHash,
+        paymentReference: payoutResponse.reference,
+        notes: `Bank payout to ${bank_account_number} (${account_name}) | Ref: ${payoutResponse.reference}`
       });
       
       // Return success response
@@ -173,8 +177,8 @@ export class SellController {
           payout_reference: payoutResponse.reference,
           amount,
           crypto_type,
-          fiat_amount: transaction.fiat_amount,
-          fiat_currency: transaction.fiat_currency
+          fiat_amount: fiatAmount,
+          fiat_currency: 'NGN'
         }
       });
     } catch (error) {
@@ -202,7 +206,7 @@ export class SellController {
       }
       
       // Get transaction from database
-      const transaction = await DatabaseService.getTransactionById(transaction_id);
+      const transaction = await DatabaseService.getTransaction(transaction_id);
       
       if (!transaction) {
         res.status(404).json({
@@ -213,22 +217,22 @@ export class SellController {
       }
       
       // If transaction has a payment reference, verify with Korapay
-      if (transaction.payment_reference) {
-        const payoutStatus = await KorapayService.checkPayoutStatus(transaction.payment_reference);
+      const paymentReference = transaction.paymentReference || null;
+      
+      if (paymentReference) {
+        const payoutStatus = await KorapayService.checkPayoutStatus(paymentReference);
         
         res.status(200).json({
           status: 'success',
           data: {
             transaction_id: transaction.id,
-            blockchain_tx_hash: transaction.blockchain_tx_hash,
-            payout_reference: transaction.payment_reference,
+            blockchain_tx_hash: transaction.blockchainTxHash,
+            payout_reference: paymentReference,
             payout_status: payoutStatus.status,
             transaction_status: transaction.status,
             amount: transaction.amount,
-            crypto_type: transaction.crypto_type,
-            fiat_amount: transaction.fiat_amount,
-            fiat_currency: transaction.fiat_currency,
-            created_at: transaction.created_at
+            crypto_type: transaction.cryptoType,
+            created_at: transaction.createdAt
           }
         });
       } else {
@@ -236,11 +240,11 @@ export class SellController {
           status: 'success',
           data: {
             transaction_id: transaction.id,
-            blockchain_tx_hash: transaction.blockchain_tx_hash,
+            blockchain_tx_hash: transaction.blockchainTxHash,
             transaction_status: transaction.status,
             amount: transaction.amount,
-            crypto_type: transaction.crypto_type,
-            created_at: transaction.created_at
+            crypto_type: transaction.cryptoType,
+            created_at: transaction.createdAt
           }
         });
       }

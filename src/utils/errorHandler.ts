@@ -28,4 +28,22 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
       message: 'Something went wrong'
     });
   }
-}; 
+};
+
+export const handleError = (error: unknown, res: Response, defaultMessage: string = 'An error occurred'): Response => {
+  console.error('Error:', error);
+  
+  if (error instanceof Error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+  
+  return res.status(500).json({
+    success: false,
+    message: defaultMessage
+  });
+};
+
+export const handleControllerError = handleError; 

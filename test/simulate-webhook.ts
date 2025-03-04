@@ -2,75 +2,74 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { config } from '../config/env';
 
-// Function to generate a webhook signature
-function generateSignature(payload: string, secretKey: string): string {
-  const hmac = crypto.createHmac('sha512', secretKey);
-  return hmac.update(payload).digest('hex');
-}
+const API_URL = 'http://localhost:3000/api';
 
-// Function to simulate a webhook event
-async function simulateWebhook() {
+// Function to simulate a webhook from Korapay
+async function simulateWebhook(transactionReference: string) {
+  console.log(`Simulating webhook for transaction: ${transactionReference}`);
+  
+  // Create webhook payload
+  const webhookPayload = {
+    event: 'charge.success',
+    data: {
+      reference: transactionReference,
+      status: 'success',
+      amount: '100.00',
+      currency: 'NGN',
+      fee: '2.50',
+      customer: {
+        name: 'Test Customer',
+        email: 'customer@example.com'
+      },
+      payment_method: 'card',
+      paid_at: new Date().toISOString()
+    }
+  };
+  
+  // Create signature (similar to how Korapay would)
+  const payload = JSON.stringify(webhookPayload);
+  const signature = crypto
+    .createHmac('sha256', config.payment.korapay.secretKey)
+    .update(payload)
+    .digest('hex');
+  
   try {
-    // Create a sample webhook payload with all possible event names
-    const events = ['charge.completed', 'charge.success', 'transaction.success'];
-    
-    for (const event of events) {
-      const payload = {
-        event,
-        data: {
-          reference: `TEST-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
-          status: 'success',
-          amount: '500',
-          currency: 'NGN',
-          customer: {
-            name: 'Test Customer',
-            email: 'customer@example.com'
-          },
-          metadata: {
-            crypto_amount: '0.0001',
-            crypto_type: 'ETH',
-            wallet_address: '0x2A69d89043948999bD327413b7B4f91d47018873'
-          },
-          payment_method: 'card',
-          paid_at: new Date().toISOString()
-        }
-      };
-      
-      // Convert payload to string
-      const payloadString = JSON.stringify(payload);
-      
-      // Generate signature
-      const signature = generateSignature(payloadString, config.payment.korapay.secretKey);
-      
-      console.log(`Simulating webhook event: ${event}...`);
-      console.log('Payload:', payloadString);
-      console.log('Signature:', signature);
-      
-      // Send webhook to your local server
-      const webhookUrl = 'http://localhost:3000/api/payment/webhook';
-      const response = await axios.post(webhookUrl, payload, {
+    // Send webhook
+    const response = await axios.post(
+      `${API_URL}/payment/webhook`,
+      webhookPayload,
+      {
         headers: {
           'Content-Type': 'application/json',
-          'X-Korapay-Signature': signature
+          'x-korapay-signature': signature
         }
-      });
-      
-      console.log(`Webhook response for ${event}:`, response.status, response.data);
-      console.log('-----------------------------------');
-      
-      // Wait a bit between requests
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  } catch (error) {
-    console.error('Webhook simulation failed:');
-    if (axios.isAxiosError(error)) {
-      console.error('Status:', error.response?.status);
-      console.error('Data:', error.response?.data);
+      }
+    );
+    
+    console.log('\n=== Webhook Response ===');
+    console.log(JSON.stringify(response.data, null, 2));
+    console.log('=========================\n');
+    
+    return true;
+  } catch (error: any) {
+    console.error('Webhook Simulation Error:');
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Data:', error.response.data);
     } else {
-      console.error('Error:', error);
+      console.error('Error message:', error.message);
     }
+    return false;
   }
 }
 
-// Run the simulation
-simulateWebhook(); 
+// Get transaction reference from command line
+const transactionReference = process.argv[2];
+
+if (!transactionReference) {
+  console.error('Please provide a transaction reference as a command line argument');
+  process.exit(1);
+}
+
+// Run simulation
+simulateWebhook(transactionReference); 

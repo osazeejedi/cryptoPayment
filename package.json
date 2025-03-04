@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "ts-node src/server.ts",
-    "build": "tsc && cp server.js dist/ && cp .env dist/",
+    "build": "tsc && cp server.js dist/",
     "test": "jest --config jest.config.js --forceExit --detectOpenHandles --testTimeout=60000",
     "test:verbose": "jest --config jest.config.js --verbose --forceExit --detectOpenHandles --testTimeout=60000",
     "test:payment": "ts-node test/payment.test.ts",

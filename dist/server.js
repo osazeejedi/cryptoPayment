@@ -1,2 +1,5 @@
-// Simple proxy to the actual server implementation
-require('./src/server'); 
+// Load environment variables first
+require('dotenv').config();
+
+// Then require the server
+require('./dist/src/server'); 

@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node dist/src/server.js",
+    "start": "node dist/server.js",
     "dev": "ts-node src/server.ts",
     "build": "tsc",
     "test": "jest --config jest.config.js --forceExit --detectOpenHandles --testTimeout=60000",

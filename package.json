@@ -5,9 +5,9 @@
   "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "node server.js",
     "dev": "ts-node src/server.ts",
-    "build": "tsc",
+    "build": "tsc && cp server.js dist/",
     "test": "jest --config jest.config.js --forceExit --detectOpenHandles --testTimeout=60000",
     "test:verbose": "jest --config jest.config.js --verbose --forceExit --detectOpenHandles --testTimeout=60000",
     "test:payment": "ts-node test/payment.test.ts",

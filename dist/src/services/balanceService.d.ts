@@ -19,4 +19,11 @@ export declare class BalanceService {
      * @returns Boolean indicating if the wallet has sufficient balance
      */
     static hasSufficientEthBalance(walletAddress: string, requiredAmount: string): Promise<boolean>;
+    /**
+     * Get wallet balance for a specific cryptocurrency
+     * @param address Wallet address
+     * @param cryptoType Type of cryptocurrency
+     * @returns Balance as a string
+     */
+    static getWalletBalance(address: string, cryptoType: string): Promise<string>;
 }

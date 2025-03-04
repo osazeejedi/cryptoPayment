@@ -17,4 +17,3 @@ const companyWallet = {
     privateKey: process.env.COMPANY_WALLET_PRIVATE_KEY,
 };
 exports.companyWallet = companyWallet;
-//# sourceMappingURL=blockchain.js.map

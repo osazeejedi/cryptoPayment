@@ -9,6 +9,8 @@ export declare const config: {
         name: string;
         user: string;
         password: string;
+        supabaseUrl: string;
+        supabaseKey: string;
     };
     blockchain: {
         infuraApiKey: string;
@@ -17,12 +19,35 @@ export declare const config: {
             privateKey: string;
             address: string;
         };
+        blockCypherToken: string;
+        network: string;
+        tokens: {
+            usdt: string;
+            usdc: string;
+        };
     };
     api: {
         coingeckoApiKey: string;
         coinmarketcapApiKey: string;
     };
+    payment: {
+        korapay: {
+            publicKey: string;
+            secretKey: string;
+            callbackUrl: string;
+        };
+    };
     security: {
         jwtSecret: string;
+    };
+    app: {
+        env: string;
+        port: number;
+        baseUrl: string;
+    };
+    supabase: {
+        url: string;
+        serviceKey: string;
+        anonKey: string;
     };
 };

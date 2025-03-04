@@ -16,4 +16,3 @@ exports.apiRateLimiter = (0, express_rate_limit_1.default)({
         message: 'Too many requests, please try again later.'
     }
 });
-//# sourceMappingURL=rateLimit.js.map

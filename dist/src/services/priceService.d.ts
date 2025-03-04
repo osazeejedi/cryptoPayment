@@ -21,4 +21,10 @@ export declare class PriceService {
      * Uses caching to reduce API calls
      */
     private static getCryptoPrice;
+    /**
+     * Get current price for a cryptocurrency
+     * @param cryptoType Type of cryptocurrency (ETH, BTC, etc.)
+     * @returns Current price in fiat currency
+     */
+    static getCurrentPrice(cryptoType: string): Promise<number>;
 }

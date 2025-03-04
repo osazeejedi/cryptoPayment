@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BalanceService = void 0;
 const blockchain_1 = require("../../config/blockchain");
+const blockchainService_1 = require("./blockchainService");
+const ethers_1 = require("ethers");
 class BalanceService {
     /**
      * Get ETH balance for a wallet address
@@ -85,6 +87,39 @@ class BalanceService {
             return false;
         }
     }
+    /**
+     * Get wallet balance for a specific cryptocurrency
+     * @param address Wallet address
+     * @param cryptoType Type of cryptocurrency
+     * @returns Balance as a string
+     */
+    static async getWalletBalance(address, cryptoType) {
+        try {
+            // Validate the address
+            if (!blockchainService_1.BlockchainService.isValidAddress(address, cryptoType)) {
+                throw new Error(`Invalid ${cryptoType} address: ${address}`);
+            }
+            if (cryptoType === 'ETH') {
+                // Get ETH balance
+                const provider = blockchainService_1.BlockchainService.getEthersProvider('ETH');
+                const balance = await provider.getBalance(address);
+                return ethers_1.ethers.formatEther(balance);
+            }
+            else if (cryptoType === 'USDT') {
+                // Get USDT balance
+                const tokenContract = blockchainService_1.BlockchainService.getTokenContract('USDT');
+                const balance = await tokenContract.balanceOf(address);
+                const decimals = await blockchainService_1.BlockchainService.getTokenDecimals('USDT');
+                return ethers_1.ethers.formatUnits(balance, decimals);
+            }
+            else {
+                throw new Error(`Unsupported cryptocurrency: ${cryptoType}`);
+            }
+        }
+        catch (error) {
+            console.error('Error getting wallet balance:', error);
+            throw new Error(`Failed to get ${cryptoType} balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
 }
 exports.BalanceService = BalanceService;
-//# sourceMappingURL=balanceService.js.map

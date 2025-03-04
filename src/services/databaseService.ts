@@ -23,6 +23,8 @@ interface TransactionData {
 }
 
 export class DatabaseService {
+  static supabase = supabase;
+
   /**
    * Get user by ID
    * @param userId User ID

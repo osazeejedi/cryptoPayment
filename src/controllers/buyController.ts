@@ -393,4 +393,34 @@ export class BuyController {
       });
     }
   }
+
+  static async verifyBuyTransaction(req: Request, res: Response): Promise<void> {
+    try {
+      const { transaction_id } = req.params;
+      
+      // Verify the transaction
+      const transaction = await DatabaseService.getTransaction(transaction_id);
+      
+      if (!transaction) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Transaction not found'
+        });
+        return;
+      }
+      
+      res.status(200).json({
+        status: 'success',
+        data: {
+          transaction
+        }
+      });
+    } catch (error) {
+      console.error('Error verifying transaction:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to verify transaction'
+      });
+    }
+  }
 } 

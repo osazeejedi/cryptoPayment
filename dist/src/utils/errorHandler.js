@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.errorHandler = exports.AppError = void 0;
+exports.handleControllerError = exports.handleError = exports.errorHandler = exports.AppError = void 0;
 class AppError extends Error {
     constructor(message, statusCode) {
         super(message);
@@ -27,4 +27,18 @@ const errorHandler = (err, req, res, next) => {
     }
 };
 exports.errorHandler = errorHandler;
-//# sourceMappingURL=errorHandler.js.map
+const handleError = (error, res, defaultMessage = 'An error occurred') => {
+    console.error('Error:', error);
+    if (error instanceof Error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+    return res.status(500).json({
+        success: false,
+        message: defaultMessage
+    });
+};
+exports.handleError = handleError;
+exports.handleControllerError = exports.handleError;

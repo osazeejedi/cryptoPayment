@@ -8,7 +8,7 @@ import authRoutes from './routes/authRoutes';
 dotenv.config();
 
 // Get port from environment variables or use default
-const PORT = config.app.port;
+const PORT = config.server.port || 3000;
 
 // Start the server
 app.listen(PORT, () => {
@@ -19,7 +19,4 @@ app.listen(PORT, () => {
 });
 
 // Schedule transaction recovery job to run every 10 minutes
-setInterval(recoverPendingTransactions, 10 * 60 * 1000);
-
-// Add this line where you register your routes
-app.use('/api/auth', authRoutes); 
+setInterval(recoverPendingTransactions, 10 * 60 * 1000); 

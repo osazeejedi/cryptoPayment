@@ -4,7 +4,7 @@ const express_1 = require("express");
 const buyController_1 = require("../controllers/buyController");
 const router = (0, express_1.Router)();
 // Use the correct method name that exists in BuyController
-router.get('/verify/:transaction_id', buyController_1.BuyController.verifyBuyTransaction);
+router.get('/verify/:transaction_id', buyController_1.BuyController.verifyPayment);
 // Or if you need to create the method in BuyController:
 // Uncomment one of these options:
 // 1. Comment out this route until you implement the method

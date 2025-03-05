@@ -289,7 +289,11 @@ class PaymentController {
             // Convert Naira to crypto amount
             const cryptoAmount = await priceService_1.PriceService.convertNairaToCrypto(naira_amount.toString(), crypto_type.toString());
             // Initialize checkout with Korapay
-            const checkoutResult = await korapayService_1.KorapayService.initializeCheckout(naira_amount.toString(), email, name, cryptoAmount, crypto_type.toString(), wallet_address);
+            const checkoutResult = await korapayService_1.KorapayService.initializeCheckout(naira_amount.toString(), email, name, cryptoAmount, crypto_type, wallet_address, {
+                crypto_type: crypto_type,
+                wallet_address: wallet_address,
+                crypto_amount: cryptoAmount
+            }, null);
             res.status(200).json({
                 status: 'success',
                 message: 'Checkout initialized',

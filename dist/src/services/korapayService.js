@@ -245,7 +245,7 @@ class KorapayService {
      * @param walletAddress User's wallet address
      * @returns Checkout URL and reference
      */
-    static async initializeCheckout(amount, email, name, cryptoAmount, cryptoType, walletAddress) {
+    static async initializeCheckout(amount, email, name, cryptoAmount, cryptoType, walletAddress, p0, p1) {
         try {
             const reference = this.generateReference();
             // Use both the regular webhook URL and the debug endpoint

@@ -7,7 +7,7 @@ const router = (0, express_1.Router)();
 // Public routes
 router.post('/register', userController_1.UserController.registerUser);
 // Protected routes
-router.use('/:userId', auth_1.authenticate);
+router.use('/:userId', auth_1.authenticateUser);
 // Get user profile
 router.get('/:userId/profile', userController_1.UserController.getUserProfile);
 // Create a new wallet

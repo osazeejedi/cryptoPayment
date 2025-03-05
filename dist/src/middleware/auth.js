@@ -1,44 +1,41 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authenticate = void 0;
+exports.authenticateUser = void 0;
 const supabase_1 = require("../../config/supabase");
+const errorHandler_1 = require("../utils/errorHandler");
 /**
  * Authentication middleware
  */
-const authenticate = async (req, res, next) => {
+const authenticateUser = async (req, res, next) => {
     try {
-        // For testing, if we have a dummy token, just pass through
         const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.includes('dummy-token-for-testing')) {
-            req.user = { id: 'test-user-id' };
-            return next();
-        }
-        // Get token from Authorization header
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({
-                status: 'error',
-                message: 'Unauthorized - No token provided'
-            });
+            throw new errorHandler_1.AppError('Not authenticated', 401);
         }
         const token = authHeader.split(' ')[1];
         // Verify token with Supabase
         const { data, error } = await supabase_1.supabase.auth.getUser(token);
         if (error || !data.user) {
-            return res.status(401).json({
-                status: 'error',
-                message: 'Unauthorized - Invalid token'
-            });
+            throw new errorHandler_1.AppError('Unauthorized - Invalid token', 401);
         }
         // Add user to request
         req.user = data.user;
         next();
     }
     catch (error) {
-        console.error('Auth middleware error:', error);
-        res.status(500).json({
-            status: 'error',
-            message: 'Internal server error'
-        });
+        if (error instanceof errorHandler_1.AppError) {
+            res.status(error.statusCode).json({
+                status: error.status,
+                message: error.message
+            });
+        }
+        else {
+            console.error('Auth middleware error:', error);
+            res.status(500).json({
+                status: 'error',
+                message: 'Authentication failed'
+            });
+        }
     }
 };
-exports.authenticate = authenticate;
+exports.authenticateUser = authenticateUser;

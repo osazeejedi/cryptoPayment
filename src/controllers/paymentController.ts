@@ -6,6 +6,8 @@ import { BlockchainService } from '../services/blockchainService';
 import { DatabaseService } from '../services/databaseService';
 import { config } from '../../config/env';
 import { PaymentInitData, KorapayPaymentInitData } from '../types/payment';
+import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 export class PaymentController {
   /**
@@ -211,41 +213,41 @@ export class PaymentController {
       const { reference } = req.params;
       
       if (!reference) {
-        res.status(400).json({ status: 'error', message: 'Reference is required' });
+        res.status(400).json({
+          status: 'error',
+          message: 'Payment reference is required'
+        });
         return;
       }
       
-      const verificationResult = await KorapayService.verifyPayment(reference);
+      // Make API request to Korapay to verify payment
+      const response = await axios.get(
+        `https://api.korapay.com/merchant/api/v1/charges/${reference}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.payment.korapay.secretKey}`
+          }
+        }
+      );
       
-      // If payment is verified as successful, trigger buy process
-      if (verificationResult.status === 'success' && verificationResult.metadata?.metadata) {
-        const { crypto_amount, crypto_type, wallet_address } = verificationResult.metadata.metadata;
-        
-        // Create a buy request
-        const buyRequest = {
-          user_id: verificationResult.metadata.customer.email,
-          amount: crypto_amount,
-          crypto_type,
-          wallet_address
-        };
-        
-        // Process the buy request using the correct method
-        await BuyController.buyRequest({ body: buyRequest } as Request, {
-          status: () => ({
-            json: () => {}
-          })
-        } as unknown as Response);
-      }
+      const paymentData = response.data.data;
       
       res.status(200).json({
         status: 'success',
-        data: verificationResult
+        data: {
+          reference: paymentData.reference,
+          amount: paymentData.amount,
+          currency: paymentData.currency,
+          status: paymentData.status,
+          payment_method: paymentData.payment_method,
+          paid_at: paymentData.paid_at
+        }
       });
     } catch (error) {
-      console.error('Payment verification error:', error);
-      res.status(500).json({ 
-        status: 'error', 
-        message: error instanceof Error ? error.message : 'An unknown error occurred' 
+      console.error('Error verifying payment:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to verify payment'
       });
     }
   }
@@ -255,93 +257,23 @@ export class PaymentController {
    */
   static async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
-      console.log('=== WEBHOOK RECEIVED ===');
-      console.log('Headers:', JSON.stringify(req.headers, null, 2));
-      console.log('Body:', JSON.stringify(req.body, null, 2));
+      const { event, data } = req.body;
       
-      // Get the signature from the headers
-      const signature = req.headers['x-korapay-signature'] as string;
+      // Verify webhook signature (implement for production)
       
-      // For debugging purposes, we'll log if the signature is missing
-      if (!signature) {
-        console.warn('Missing webhook signature - continuing anyway for testing');
-        // For testing, we'll continue without a signature
-        // In production, you would return a 400 error here
-      }
-      
-      // Validate the signature if present
-      let isValid = true; // Default to true for testing
-      if (signature) {
-        const payload = JSON.stringify(req.body);
-        isValid = KorapayService.validateWebhookSignature(signature, payload);
-        console.log('Signature validation:', isValid ? 'PASSED' : 'FAILED');
-      }
-      
-      // For testing purposes, we'll continue even if validation fails
-      // In production, you would return a 401 error here
-      if (!isValid) {
-        console.warn('Invalid webhook signature - continuing anyway for testing');
-      }
-      
-      // Process the webhook
-      const event = req.body.event;
-      const data = req.body.data;
-      
-      if (!event || !data) {
-        console.error('Missing event or data in webhook payload');
-        res.status(400).json({ status: 'error', message: 'Invalid webhook payload' });
-        return;
-      }
-      
-      console.log(`Processing ${event} event for reference: ${data.reference || 'unknown'}`);
-      
-      // Handle multiple possible event names for successful payments
-      if ((event === 'charge.completed' || event === 'charge.success' || event === 'transaction.success') 
-          && data.status === 'success') {
-        // Extract metadata
-        const metadata = data.metadata || {};
-        const crypto_amount = metadata.crypto_amount;
-        const crypto_type = metadata.crypto_type;
-        const wallet_address = metadata.wallet_address;
+      // Process payment event
+      if (event === 'charge.success') {
+        // Payment was successful
+        console.log('Payment successful:', data.reference);
         
-        if (!crypto_amount || !crypto_type || !wallet_address) {
-          console.error('Missing required metadata:', metadata);
-          res.status(200).json({ status: 'error', message: 'Missing required metadata' });
-          return;
-        }
-        
-        console.log('Extracted metadata:', { crypto_amount, crypto_type, wallet_address });
-        
-        try {
-          // Create a buy request
-          const buyRequest = {
-            user_id: data.customer?.email || 'unknown@example.com',
-            amount: crypto_amount,
-            crypto_type: crypto_type,
-            wallet_address: wallet_address
-          };
-          
-          console.log('Creating buy request:', JSON.stringify(buyRequest, null, 2));
-          
-          // Process the buy request directly
-          const txHash = await BuyController.processBuyRequest(buyRequest);
-          
-          console.log('Buy request processed successfully with transaction hash:', txHash);
-        } catch (buyError) {
-          console.error('Error processing buy request:', buyError);
-          // We still return 200 to Korapay to acknowledge receipt
-        }
-      } else {
-        console.log('Event not processed:', event, data.status);
+        // Update payment status in your database
+        // Credit user's wallet or process order
       }
       
-      // Acknowledge receipt of the webhook
-      res.status(200).json({ status: 'success', message: 'Webhook processed' });
-      console.log('=== WEBHOOK PROCESSING COMPLETE ===');
+      res.status(200).json({ received: true });
     } catch (error) {
-      console.error('Error processing webhook:', error);
-      // Always return 200 to Korapay to prevent retries
-      res.status(200).json({ status: 'error', message: 'Webhook processing failed' });
+      console.error('Webhook error:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
     }
   }
   
@@ -724,6 +656,82 @@ export class PaymentController {
       res.status(500).json({
         status: 'error',
         message: error instanceof Error ? error.message : 'Failed to check payment status'
+      });
+    }
+  }
+  
+  /**
+   * Generate payment checkout URL
+   */
+  static async generateCheckoutUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const { amount, email, name, phone, reference, callbackUrl, channels } = req.body;
+      
+      // Validate required fields
+      if (!amount || !email) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Amount and email are required'
+        });
+        return;
+      }
+      
+      // Generate a unique reference if not provided
+      const paymentReference = reference || `PAY-${uuidv4()}`;
+      
+      // Default payment channels if not specified
+      const paymentChannels = channels || ['card', 'bank_transfer', 'ussd', 'virtual_account'];
+      
+      // Ensure virtual_account is included in the channels
+      if (!paymentChannels.includes('virtual_account')) {
+        paymentChannels.push('virtual_account');
+      }
+      
+      // Create payment request payload for Korapay
+      const payload = {
+        reference: paymentReference,
+        amount: parseFloat(amount),
+        currency: 'NGN',
+        notification_url: callbackUrl || config.payment.korapay.callbackUrl,
+        return_url: callbackUrl || config.payment.korapay.callbackUrl, // Changed redirect_url to return_url since redirectUrl doesn't exist
+        channels: paymentChannels,
+        customer: {
+          name: name || 'Customer',
+          email: email,
+          phone_number: phone || ''
+        },
+        metadata: {
+          source: 'crypto_payment_api'
+        }
+      };
+      
+      // Make API request to Korapay
+      const response = await axios.post(
+        'https://api.korapay.com/merchant/api/v1/charges/initialize',
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.payment.korapay.secretKey}`
+          }
+        }
+      );
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Payment checkout URL generated successfully',
+        data: {
+          reference: paymentReference,
+          checkout_url: response.data.data.checkout_url,
+          amount: amount,
+          currency: 'NGN'
+        }
+      });
+    } catch (error) {
+      console.error('Error generating checkout URL:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to generate checkout URL'
       });
     }
   }

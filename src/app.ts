@@ -17,6 +17,7 @@ import { TransactionMonitor } from './jobs/transactionMonitor';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './config/swagger';
 import userRoutes from './routes/userRoutes';
+import virtualAccountRoutes from './routes/virtualAccountRoutes';
 
 // Create Express application
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/swap', swapRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/virtual-account', virtualAccountRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

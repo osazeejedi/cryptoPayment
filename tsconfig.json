@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
+    "typeRoots": ["./node_modules/@types"],
     "resolveJsonModule": true
   },
   "include": ["src/**/*", "config/**/*"],

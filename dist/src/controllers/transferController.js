@@ -15,32 +15,22 @@ class TransferController {
             if (!from_private_key || !to_address || !amount || !crypto_type) {
                 res.status(400).json({
                     status: 'error',
-                    message: 'Missing required parameters'
+                    message: 'Missing required fields'
                 });
                 return;
             }
-            // Validate the private key format (basic check)
-            if (!from_private_key.startsWith('0x') || from_private_key.length !== 66) {
-                res.status(400).json({
-                    status: 'error',
-                    message: 'Invalid private key format'
-                });
-                return;
-            }
-            // Validate the recipient address
+            // Validate address
             if (!blockchainService_1.BlockchainService.isValidAddress(to_address, crypto_type)) {
                 res.status(400).json({
                     status: 'error',
-                    message: `Invalid ${crypto_type} address: ${to_address}`
+                    message: 'Invalid destination address'
                 });
                 return;
             }
-            // Send the crypto
+            // Send crypto
             const txHash = await blockchainService_1.BlockchainService.sendCrypto(from_private_key, to_address, amount, crypto_type);
-            // Return the transaction details
             res.status(200).json({
                 status: 'success',
-                message: `Successfully sent ${amount} ${crypto_type} to ${to_address}`,
                 data: {
                     transaction_hash: txHash,
                     from_address: blockchainService_1.BlockchainService.getAddressFromPrivateKey(from_private_key),
@@ -55,7 +45,40 @@ class TransferController {
             console.error('Error sending crypto:', error);
             res.status(500).json({
                 status: 'error',
-                message: error instanceof Error ? error.message : 'Failed to send cryptocurrency'
+                message: error instanceof Error ? error.message : 'Failed to send crypto'
+            });
+        }
+    }
+    /**
+     * Get transfer fee estimate
+     */
+    static async getTransferFee(req, res) {
+        try {
+            const { crypto_type } = req.query;
+            if (!crypto_type) {
+                res.status(400).json({
+                    status: 'error',
+                    message: 'Crypto type is required'
+                });
+                return;
+            }
+            // For testing, we'll just return a fixed fee
+            // In a real implementation, we would call the blockchain service
+            const fee = '0.0001'; // Mock fee for testing
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    fee,
+                    crypto_type,
+                    timestamp: new Date().toISOString()
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error getting transfer fee:', error);
+            res.status(500).json({
+                status: 'error',
+                message: error instanceof Error ? error.message : 'Failed to get transfer fee'
             });
         }
     }

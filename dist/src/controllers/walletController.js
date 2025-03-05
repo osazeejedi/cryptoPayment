@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WalletController = void 0;
+const databaseService_1 = require("../services/databaseService");
 const blockchainService_1 = require("../services/blockchainService");
 const supabase_1 = require("../../config/supabase");
 const errorHandler_1 = require("../utils/errorHandler");
@@ -49,19 +50,21 @@ class WalletController {
     static async getWalletBalance(req, res) {
         try {
             const { address } = req.params;
-            if (!address) {
+            const { crypto_type } = req.query;
+            if (!address || !crypto_type) {
                 res.status(400).json({
                     status: 'error',
-                    message: 'Wallet address is required'
+                    message: 'Address and crypto type are required'
                 });
                 return;
             }
-            // Get balance using the blockchain service
-            const balance = await blockchainService_1.BlockchainService.getWalletBalance(address, 'ETH');
+            // Get balance from blockchain
+            const balance = await blockchainService_1.BlockchainService.getBalance(address, crypto_type);
             res.status(200).json({
                 status: 'success',
                 data: {
                     address,
+                    crypto_type,
                     balance
                 }
             });
@@ -70,7 +73,7 @@ class WalletController {
             console.error('Error getting wallet balance:', error);
             res.status(500).json({
                 status: 'error',
-                message: error instanceof Error ? error.message : 'Failed to get balance'
+                message: error instanceof Error ? error.message : 'Failed to get wallet balance'
             });
         }
     }
@@ -185,6 +188,43 @@ class WalletController {
         }
         catch (error) {
             (0, errorHandler_1.handleError)(error, res, 'Failed to get user transactions');
+        }
+    }
+    static async createWallet(req, res) {
+        try {
+            const userId = req.user.id;
+            const { crypto_type } = req.body;
+            if (!crypto_type) {
+                res.status(400).json({
+                    status: 'error',
+                    message: 'Crypto type is required'
+                });
+                return;
+            }
+            // Create wallet using blockchain service
+            const walletData = await blockchainService_1.BlockchainService.createWallet(crypto_type);
+            // Save wallet to database
+            const wallet = await databaseService_1.DatabaseService.createWallet({
+                user_id: userId,
+                address: walletData.address,
+                crypto_type,
+                private_key: walletData.privateKey // Note: In a real app, encrypt this!
+            });
+            res.status(201).json({
+                status: 'success',
+                data: {
+                    id: wallet.id,
+                    address: wallet.address,
+                    crypto_type: wallet.crypto_type
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error creating wallet:', error);
+            res.status(500).json({
+                status: 'error',
+                message: error instanceof Error ? error.message : 'Failed to create wallet'
+            });
         }
     }
 }

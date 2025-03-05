@@ -4,35 +4,54 @@ exports.blockchainService = exports.BlockchainService = void 0;
 const walletService_1 = require("./walletService");
 const ethers_1 = require("ethers");
 const env_1 = require("../../config/env");
-const blockchainFactory_1 = require("./blockchain/blockchainFactory");
-const circuitBreakerDecorator_1 = require("../utils/circuitBreakerDecorator");
-const serviceErrors_1 = require("../utils/serviceErrors");
 class BlockchainService {
-    static initialize() {
-        try {
-            this.provider = blockchainFactory_1.BlockchainFactory.getProvider('ethereum');
-            // Apply circuit breakers to critical methods
-            (0, circuitBreakerDecorator_1.withCircuitBreaker)(this.provider, 'transferCrypto', {
-                failureThreshold: 3,
-                resetTimeout: 60000 // 1 minute
-            });
-            (0, circuitBreakerDecorator_1.withCircuitBreaker)(this.provider, 'getBalance', {
-                failureThreshold: 5,
-                resetTimeout: 30000 // 30 seconds
-            });
-            console.log('BlockchainService initialized successfully');
-        }
-        catch (error) {
-            console.error('Failed to initialize BlockchainService:', error);
-            throw error;
-        }
-    }
+    /**
+     * Get balance of a wallet address
+     */
     static async getBalance(address, cryptoType = 'ETH') {
         try {
-            return await this.provider.getBalance(address, cryptoType);
+            // For ETH balance
+            if (cryptoType === 'ETH') {
+                const balance = await this.provider.getBalance(address);
+                return ethers_1.ethers.formatEther(balance);
+            }
+            // For BTC (mock implementation since we're not connecting to Bitcoin network)
+            if (cryptoType === 'BTC') {
+                return '0.00000000'; // Placeholder BTC balance
+            }
+            // For ERC20 tokens
+            const tokenAddresses = {
+                'USDT': '0xdAC17F958D2ee523a2206206994597C13D831ec7', // Mainnet USDT
+                'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' // Mainnet USDC
+            };
+            if (tokenAddresses[cryptoType]) {
+                // ERC20 token ABI (minimal for balance checking)
+                const minABI = [
+                    {
+                        constant: true,
+                        inputs: [{ name: "_owner", type: "address" }],
+                        name: "balanceOf",
+                        outputs: [{ name: "balance", type: "uint256" }],
+                        type: "function",
+                    },
+                    {
+                        constant: true,
+                        inputs: [],
+                        name: "decimals",
+                        outputs: [{ name: "", type: "uint8" }],
+                        type: "function",
+                    }
+                ];
+                const tokenContract = new ethers_1.ethers.Contract(tokenAddresses[cryptoType], minABI, this.provider);
+                const balance = await tokenContract.balanceOf(address);
+                const decimals = await tokenContract.decimals();
+                return ethers_1.ethers.formatUnits(balance, decimals);
+            }
+            throw new Error(`Unsupported cryptocurrency type: ${cryptoType}`);
         }
         catch (error) {
-            throw (0, serviceErrors_1.handleServiceError)(error, 'blockchain');
+            console.error('[blockchain] Error:', error);
+            throw new Error(`BlockchainError: Blockchain operation failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     static async verifyTransaction(txHash, cryptoType) {
@@ -689,8 +708,34 @@ class BlockchainService {
             throw new Error(`Failed to transfer ${cryptoType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
-}
+    /**
+     * Get estimated transfer fee for a cryptocurrency
+     * @param cryptoType Type of cryptocurrency
+     * @returns Estimated fee as a string
+     */
+    static async getTransferFee(cryptoType) {
+        try {
+            // In a real implementation, this would calculate the actual gas fee
+            // For now, return fixed values based on crypto type
+            switch (cryptoType.toUpperCase()) {
+                case 'ETH':
+                    return '0.0001';
+                case 'BTC':
+                    return '0.00005';
+                case 'USDT':
+                    return '0.00002';
+                default:
+                    return '0.0001';
+            }
+        }
+        catch (error) {
+            console.error(`Error getting transfer fee for ${cryptoType}:`, error);
+            throw new Error(`Failed to get transfer fee for ${cryptoType}`);
+        }
+    }
+} // Initialize the service when the module is loaded
 exports.BlockchainService = BlockchainService;
+BlockchainService.provider = new ethers_1.ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/demo');
 // Add static properties
 BlockchainService.COMPANY_WALLET_PRIVATE_KEY = env_1.config.blockchain.companyWallet.privateKey;
 BlockchainService.COMPANY_WALLET_ADDRESS = env_1.config.blockchain.companyWallet.address;
@@ -725,5 +770,4 @@ BlockchainService.UNISWAP_ROUTER_ABI = [
     'function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
     'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)'
 ];
-// Initialize the service when the module is loaded
 exports.blockchainService = new BlockchainService();

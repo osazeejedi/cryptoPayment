@@ -332,5 +332,48 @@ class BuyController {
     static async createBuyOrder(req, res) {
         return this.initiatePurchase(req, res);
     }
+    /**
+     * Create payment for buying crypto
+     */
+    static async createPayment(req, res) {
+        try {
+            // Extract request data
+            const { amount, crypto_type, payment_method, email, name } = req.body;
+            // Validate request
+            if (!amount || !crypto_type || !payment_method) {
+                res.status(400).json({
+                    status: 'error',
+                    message: 'Missing required fields'
+                });
+                return;
+            }
+            // Create transaction record
+            const transaction = await databaseService_1.DatabaseService.createTransaction({
+                user_id: req.user?.id || 'guest',
+                type: 'buy',
+                amount,
+                crypto_type,
+                status: 'pending'
+            });
+            // Return success response
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    transaction_id: transaction.id,
+                    amount,
+                    crypto_type,
+                    payment_method,
+                    status: 'pending'
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error creating payment:', error);
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to create payment'
+            });
+        }
+    }
 }
 exports.BuyController = BuyController;

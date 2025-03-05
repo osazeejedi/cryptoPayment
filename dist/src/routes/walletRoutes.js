@@ -20,7 +20,16 @@ const router = (0, express_1.Router)();
  *       404:
  *         description: Wallet not found
  */
-router.get('/', auth_1.authenticateUser, (req, res, next) => walletController_1.WalletController.getUserWallet(req, res).catch(next));
+router.get('/', auth_1.authenticateUser, (req, res) => {
+    walletController_1.WalletController.getUserWallet(req, res)
+        .catch(err => {
+        console.error('Error in get user wallet route:', err);
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error'
+        });
+    });
+});
 /**
  * @swagger
  * /api/wallet/private-key:
@@ -51,7 +60,16 @@ router.get('/', auth_1.authenticateUser, (req, res, next) => walletController_1.
  *       404:
  *         description: Wallet not found
  */
-router.post('/private-key', auth_1.authenticateUser, (req, res, next) => walletController_1.WalletController.getWalletPrivateKey(req, res).catch(next));
+router.post('/private-key', auth_1.authenticateUser, (req, res) => {
+    walletController_1.WalletController.getWalletPrivateKey(req, res)
+        .catch(err => {
+        console.error('Error in get wallet private key route:', err);
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error'
+        });
+    });
+});
 /**
  * @swagger
  * /api/wallet/transactions:
@@ -85,5 +103,36 @@ router.post('/private-key', auth_1.authenticateUser, (req, res, next) => walletC
  *       401:
  *         description: Unauthorized
  */
-router.get('/transactions', auth_1.authenticateUser, (req, res, next) => walletController_1.WalletController.getUserTransactions(req, res).catch(next));
+router.get('/transactions', auth_1.authenticateUser, (req, res) => {
+    walletController_1.WalletController.getUserTransactions(req, res)
+        .catch(err => {
+        console.error('Error in get user transactions route:', err);
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error'
+        });
+    });
+});
+// Create a new wallet
+router.post('/', auth_1.authenticateUser, (req, res) => {
+    walletController_1.WalletController.createWallet(req, res)
+        .catch(err => {
+        console.error('Error in create wallet route:', err);
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error'
+        });
+    });
+});
+// Get wallet balance
+router.get('/:address/balance', auth_1.authenticateUser, (req, res) => {
+    walletController_1.WalletController.getWalletBalance(req, res)
+        .catch(err => {
+        console.error('Error in wallet balance route:', err);
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error'
+        });
+    });
+});
 exports.default = router;

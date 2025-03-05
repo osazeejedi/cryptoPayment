@@ -37,7 +37,7 @@ export interface Transaction {
   created_at: string;
 }
 
-interface TransactionData {
+export interface TransactionData {
   id?: string;
   user_id: string;
   amount: string;
@@ -55,4 +55,5 @@ interface TransactionData {
   to_address?: string;
   fiat_amount?: string;
   fiat_currency?: string;
+  type: 'buy' | 'sell' | 'transfer';
 } 

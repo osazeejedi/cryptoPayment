@@ -426,8 +426,11 @@ export class BuyController {
         user_id: req.user?.id || 'guest',
         transaction_type: 'buy',
         amount,
-        crypto_type,
-        status: 'pending'
+        cryptoType: crypto_type,
+        status: 'pending',
+        cryptoAmount: '0',
+        walletAddress: '',
+        paymentMethod: payment_method
       });
       
       // Return success response

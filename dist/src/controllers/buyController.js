@@ -350,10 +350,13 @@ class BuyController {
             // Create transaction record
             const transaction = await databaseService_1.DatabaseService.createTransaction({
                 user_id: req.user?.id || 'guest',
-                type: 'buy',
+                transaction_type: 'buy',
                 amount,
-                crypto_type,
-                status: 'pending'
+                cryptoType: crypto_type,
+                status: 'pending',
+                cryptoAmount: '0',
+                walletAddress: '',
+                paymentMethod: payment_method
             });
             // Return success response
             res.status(200).json({

@@ -76,12 +76,14 @@ class SellController {
             // Process the sell request
             const transaction = await databaseService_1.DatabaseService.createTransaction({
                 user_id,
-                type: 'sell',
+                transaction_type: 'sell',
                 amount: crypto_amount,
-                crypto_type,
+                cryptoType: crypto_type,
                 status: 'pending',
-                bank_account_number,
-                bank_code
+                cryptoAmount: '0',
+                walletAddress: '',
+                paymentMethod: 'bank_transfer',
+                notes: `Bank: ${bank_code}, Account: ${bank_account_number}`
             });
             // Return success response
             res.status(200).json({

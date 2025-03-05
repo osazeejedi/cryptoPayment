@@ -97,7 +97,7 @@ export class SellController {
       // Process the sell request
       const transaction = await DatabaseService.createTransaction({
         user_id,
-        type: 'sell',
+        transaction_type: 'sell',
         amount: crypto_amount,
         crypto_type,
         status: 'pending',

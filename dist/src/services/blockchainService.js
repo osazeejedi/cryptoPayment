@@ -733,6 +733,34 @@ class BlockchainService {
             throw new Error(`Failed to get transfer fee for ${cryptoType}`);
         }
     }
+    /**
+     * Create a new wallet for the specified crypto type
+     * @param crypto_type Type of cryptocurrency (ETH, BTC, etc.)
+     * @returns Object containing address and private key
+     */
+    static async createWallet(crypto_type) {
+        try {
+            // Implementation depends on the blockchain library you're using
+            // For Ethereum using ethers.js:
+            if (crypto_type === 'ETH') {
+                const wallet = ethers_1.ethers.Wallet.createRandom();
+                return {
+                    address: wallet.address,
+                    privateKey: wallet.privateKey
+                };
+            }
+            // For other crypto types, implement accordingly
+            // For now, return a mock wallet for other types
+            return {
+                address: `0x${crypto_type}_${Math.random().toString(36).substring(2, 15)}`,
+                privateKey: `0x${Math.random().toString(36).substring(2, 15)}`
+            };
+        }
+        catch (error) {
+            console.error('Error creating wallet:', error);
+            throw new Error(`Failed to create ${crypto_type} wallet`);
+        }
+    }
 } // Initialize the service when the module is loaded
 exports.BlockchainService = BlockchainService;
 BlockchainService.provider = new ethers_1.ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/demo');

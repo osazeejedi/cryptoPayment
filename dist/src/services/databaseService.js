@@ -54,28 +54,30 @@ class DatabaseService {
         }
     }
     /**
-     * Create a new wallet for a user
-     * @param wallet Wallet object
-     * @returns Created wallet or null
+     * Create a new wallet
+     * @param walletData Wallet data
+     * @returns Created wallet or null if failed
      */
-    static async createWallet(wallet) {
+    static async createWallet(walletData) {
         try {
             const { data, error } = await supabase_1.supabase
                 .from('wallets')
-                .insert([wallet])
+                .insert([walletData])
                 .select()
                 .single();
-            if (error)
-                throw error;
+            if (error) {
+                console.error('Error creating wallet:', error);
+                return null;
+            }
             return data;
         }
         catch (error) {
-            console.error('Error creating wallet:', error);
+            console.error('Error in createWallet:', error);
             return null;
         }
     }
     /**
-     * Get user wallets
+     * Get all wallets for a user
      * @param userId User ID
      * @returns Array of wallets
      */
@@ -85,12 +87,14 @@ class DatabaseService {
                 .from('wallets')
                 .select('*')
                 .eq('user_id', userId);
-            if (error)
-                throw error;
-            return data || [];
+            if (error) {
+                console.error('Error fetching user wallets:', error);
+                return [];
+            }
+            return data;
         }
         catch (error) {
-            console.error('Error getting user wallets:', error);
+            console.error('Error in getUserWallets:', error);
             return [];
         }
     }
@@ -390,6 +394,31 @@ class DatabaseService {
         catch (error) {
             console.error('Error in getUserProfile:', error);
             throw error;
+        }
+    }
+    /**
+     * Update a wallet
+     * @param walletId Wallet ID
+     * @param updateData Data to update
+     * @returns Updated wallet or null if failed
+     */
+    static async updateWallet(walletId, updateData) {
+        try {
+            const { data, error } = await supabase_1.supabase
+                .from('wallets')
+                .update(updateData)
+                .eq('id', walletId)
+                .select()
+                .single();
+            if (error) {
+                console.error('Error updating wallet:', error);
+                return null;
+            }
+            return data;
+        }
+        catch (error) {
+            console.error('Error in updateWallet:', error);
+            return null;
         }
     }
 }

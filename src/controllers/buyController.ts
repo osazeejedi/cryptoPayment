@@ -424,7 +424,7 @@ export class BuyController {
       // Create transaction record
       const transaction = await DatabaseService.createTransaction({
         user_id: req.user?.id || 'guest',
-        type: 'buy',
+        transaction_type: 'buy',
         amount,
         crypto_type,
         status: 'pending'

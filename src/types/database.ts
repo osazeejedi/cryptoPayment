@@ -51,9 +51,8 @@ export interface TransactionData {
   notes?: string;
   createdAt?: Date;
   updatedAt?: Date;
-  transaction_type?: string;
+  transaction_type: 'buy' | 'sell' | 'transfer';
   to_address?: string;
   fiat_amount?: string;
   fiat_currency?: string;
-  type: 'buy' | 'sell' | 'transfer';
 } 

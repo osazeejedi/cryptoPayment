@@ -38,10 +38,14 @@ export class DatabaseService {
         .eq('id', userId)
         .single();
       
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching user:', error);
+        return null;
+      }
+      
+      return data as User;
     } catch (error) {
-      console.error('Error getting user:', error);
+      console.error('Error in getUserById:', error);
       return null;
     }
   }
@@ -389,6 +393,44 @@ export class DatabaseService {
     } catch (error) {
       console.error('Error creating user:', error);
       return null;
+    }
+  }
+
+  /**
+   * Get user profile with wallets
+   * @param userId User ID
+   * @returns User profile with wallets
+   */
+  static async getUserProfile(userId: string): Promise<{ user: any, wallets: any[] }> {
+    try {
+      // Get user data
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id, email, name, created_at, updated_at, profile_image, phone_number, is_verified')
+        .eq('id', userId)
+        .single();
+      
+      if (userError) {
+        throw new Error(`Error fetching user: ${userError.message}`);
+      }
+      
+      // Get user's wallets
+      const { data: wallets, error: walletsError } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (walletsError) {
+        throw new Error(`Error fetching wallets: ${walletsError.message}`);
+      }
+      
+      return {
+        user,
+        wallets: wallets || []
+      };
+    } catch (error) {
+      console.error('Error in getUserProfile:', error);
+      throw error;
     }
   }
 } 

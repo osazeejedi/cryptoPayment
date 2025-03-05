@@ -47,9 +47,9 @@ describe('User Buy Flow', () => {
     const token = loginResponse.data.token;
     
     // Step 3: Initialize a crypto purchase
-    const buyResponse = await axios.post(
-      `${API_URL}/payment/checkout`, 
-      {
+        const buyResponse = await axios.post(
+          `${API_URL}/payment/checkout`,
+          {
         naira_amount: "5000",
         crypto_type: "ETH",
         email: testEmail,

@@ -1,0 +1,612 @@
+{
+    "info": {
+      "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Crypto Payment API",
+      "description": "API for cryptocurrency payments, transfers, and virtual accounts",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Authentication",
+        "item": [
+          {
+            "name": "Register User",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"securepassword\",\n  \"name\": \"Test User\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/auth/register",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "auth", "register"]
+              },
+              "description": "Register a new user"
+            }
+          },
+          {
+            "name": "Login User",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"securepassword\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/auth/login",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "auth", "login"]
+              },
+              "description": "Login and get authentication token"
+            }
+          }
+        ]
+      },
+      {
+        "name": "User Profile",
+        "item": [
+          {
+            "name": "Get User Profile",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "url": {
+                "raw": "{{baseUrl}}/api/user/profile",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "user", "profile"]
+              },
+              "description": "Get user profile information"
+            }
+          },
+          {
+            "name": "Update User Profile",
+            "request": {
+              "method": "PUT",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone_number\": \"+2348012345678\",\n  \"profile_image\": \"https://example.com/profile.jpg\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/user/profile",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "user", "profile"]
+              },
+              "description": "Update user profile information"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Wallet Operations",
+        "item": [
+          {
+            "name": "Get User Wallet",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "url": {
+                "raw": "{{baseUrl}}/api/wallet",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "wallet"]
+              },
+              "description": "Get user's wallet information"
+            }
+          },
+          {
+            "name": "Get Wallet Private Key",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"password\": \"your-password-here\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/wallet/private-key",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "wallet", "private-key"]
+              },
+              "description": "Get user's wallet private key (requires password confirmation)"
+            }
+          },
+          {
+            "name": "Get User Transactions",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "url": {
+                "raw": "{{baseUrl}}/api/wallet/transactions?page=1&limit=10&type=buy",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "wallet", "transactions"],
+                "query": [
+                  {
+                    "key": "page",
+                    "value": "1"
+                  },
+                  {
+                    "key": "limit",
+                    "value": "10"
+                  },
+                  {
+                    "key": "type",
+                    "value": "buy"
+                  }
+                ]
+              },
+              "description": "Get user's transaction history with pagination and filtering"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Swap Operations",
+        "item": [
+          {
+            "name": "Swap Cryptocurrency",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"private_key\": \"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\",\n  \"amount\": \"0.1\",\n  \"from_crypto\": \"ETH\",\n  \"to_crypto\": \"USDT\",\n  \"slippage_percentage\": \"1\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/swap/execute",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "swap", "execute"]
+              },
+              "description": "Swap one cryptocurrency for another"
+            }
+          },
+          {
+            "name": "Get Swap Estimate",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/swap/estimate?amount=0.1&from_crypto=ETH&to_crypto=USDT",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "swap", "estimate"],
+                "query": [
+                  {
+                    "key": "amount",
+                    "value": "0.1"
+                  },
+                  {
+                    "key": "from_crypto",
+                    "value": "ETH"
+                  },
+                  {
+                    "key": "to_crypto",
+                    "value": "USDT"
+                  }
+                ]
+              },
+              "description": "Get estimated output amount for a swap"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Transfer Operations",
+        "item": [
+          {
+            "name": "Send Cryptocurrency",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"from_private_key\": \"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\",\n  \"to_address\": \"0xabcdef1234567890abcdef1234567890abcdef1234\",\n  \"amount\": \"0.1\",\n  \"crypto_type\": \"ETH\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/transfer/send",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "transfer", "send"]
+              },
+              "description": "Send cryptocurrency to another wallet"
+            }
+          },
+          {
+            "name": "Get Wallet Balance",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/transfer/balance?address=0xabcdef1234567890abcdef1234567890abcdef1234&crypto_type=ETH",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "transfer", "balance"],
+                "query": [
+                  {
+                    "key": "address",
+                    "value": "0xabcdef1234567890abcdef1234567890abcdef1234"
+                  },
+                  {
+                    "key": "crypto_type",
+                    "value": "ETH"
+                  }
+                ]
+              },
+              "description": "Get the balance of a wallet"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Virtual Account Operations",
+        "item": [
+          {
+            "name": "Create Virtual Account",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"amount\": 10000,\n  \"narration\": \"Wallet funding\",\n  \"currency\": \"NGN\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/virtual-account",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "virtual-account"]
+              },
+              "description": "Create a virtual account for a user"
+            }
+          },
+          {
+            "name": "Get User's Virtual Accounts",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "url": {
+                "raw": "{{baseUrl}}/api/virtual-account/list?status=pending",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "virtual-account", "list"],
+                "query": [
+                  {
+                    "key": "status",
+                    "value": "pending"
+                  }
+                ]
+              },
+              "description": "Get user's virtual accounts with optional status filter"
+            }
+          },
+          {
+            "name": "Get Virtual Account Details",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ],
+              "url": {
+                "raw": "{{baseUrl}}/api/virtual-account/{{reference}}",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "virtual-account", "{{reference}}"]
+              },
+              "description": "Get details of a specific virtual account"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Payment Operations",
+        "item": [
+          {
+            "name": "Generate Checkout URL",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"amount\": 10000,\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"+2348012345678\",\n  \"channels\": [\"card\", \"bank_transfer\", \"ussd\", \"virtual_account\"]\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/payment/checkout",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "payment", "checkout"]
+              },
+              "description": "Generate payment checkout URL with virtual account option"
+            }
+          },
+          {
+            "name": "Verify Payment",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/payment/verify/{{paymentReference}}",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "payment", "verify", "{{paymentReference}}"]
+              },
+              "description": "Verify payment status"
+            }
+          },
+          {
+            "name": "Process Card Payment",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"naira_amount\": 10000,\n  \"crypto_type\": \"ETH\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\",\n  \"wallet_address\": \"0xabcdef1234567890abcdef1234567890abcdef1234\",\n  \"card_number\": \"4111111111111111\",\n  \"card_expiry\": \"12/25\",\n  \"card_cvv\": \"123\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/payment/card",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "payment", "card"]
+              },
+              "description": "Process a card payment to buy cryptocurrency"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Sell Operations",
+        "item": [
+          {
+            "name": "Sell Cryptocurrency",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"private_key\": \"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\",\n  \"amount\": \"0.1\",\n  \"crypto_type\": \"ETH\",\n  \"bank_code\": \"057\",\n  \"account_number\": \"0123456789\",\n  \"account_name\": \"John Doe\"\n}"
+              },
+              "url": {
+                "raw": "{{baseUrl}}/api/sell",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "sell"]
+              },
+              "description": "Sell cryptocurrency for Naira"
+            }
+          },
+          {
+            "name": "Get Banks",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/sell/banks",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "sell", "banks"]
+              },
+              "description": "Get list of supported banks"
+            }
+          },
+          {
+            "name": "Verify Bank Account",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/sell/verify-account?bank_code=057&account_number=0123456789",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "sell", "verify-account"],
+                "query": [
+                  {
+                    "key": "bank_code",
+                    "value": "057"
+                  },
+                  {
+                    "key": "account_number",
+                    "value": "0123456789"
+                  }
+                ]
+              },
+              "description": "Verify bank account details"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Price Operations",
+        "item": [
+          {
+            "name": "Get Current Price",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/price/current?crypto=ETH",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "price", "current"],
+                "query": [
+                  {
+                    "key": "crypto",
+                    "value": "ETH"
+                  }
+                ]
+              },
+              "description": "Get current price of a cryptocurrency"
+            }
+          },
+          {
+            "name": "Get Price History",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/price/history?crypto=ETH&period=7d",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "price", "history"],
+                "query": [
+                  {
+                    "key": "crypto",
+                    "value": "ETH"
+                  },
+                  {
+                    "key": "period",
+                    "value": "7d"
+                  }
+                ]
+              },
+              "description": "Get price history for a cryptocurrency"
+            }
+          },
+          {
+            "name": "Convert Currency",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/api/price/convert?amount=10000&cryptoType=ETH",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "price", "convert"],
+                "query": [
+                  {
+                    "key": "amount",
+                    "value": "10000"
+                  },
+                  {
+                    "key": "cryptoType",
+                    "value": "ETH"
+                  }
+                ]
+              },
+              "description": "Convert Naira amount to cryptocurrency"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Health Check",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "{{baseUrl}}/health",
+            "host": ["{{baseUrl}}"],
+            "path": ["health"]
+          },
+          "description": "Check if the API is running"
+        }
+      }
+    ],
+    "event": [
+      {
+        "listen": "prerequest",
+        "script": {
+          "type": "text/javascript",
+          "exec": [""]
+        }
+      },
+      {
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [""]
+        }
+      }
+    ],
+    "variable": [
+      {
+        "key": "baseUrl",
+        "value": "https://crypto-payment-api-production.up.railway.app",
+        "type": "string"
+      },
+      {
+        "key": "authToken",
+        "value": "your-auth-token-here",
+        "type": "string"
+      },
+      {
+        "key": "paymentReference",
+        "value": "PAY-12345",
+        "type": "string"
+      },
+      {
+        "key": "reference",
+        "value": "VA-12345",
+        "type": "string"
+      }
+    ]
+  }

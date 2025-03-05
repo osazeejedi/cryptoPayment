@@ -14,55 +14,23 @@ export class UserController {
     try {
       const userId = req.user.id;
       
-      // Get user data from database
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('id, email, name, created_at, updated_at, profile_image, phone_number, is_verified')
-        .eq('id', userId)
-        .single();
+      // Get user profile from database
+      const profile = await DatabaseService.getUserProfile(userId);
       
-      if (error || !user) {
-        res.status(404).json({
-          status: 'error',
-          message: 'User not found'
-        });
-        return;
-      }
-      
-      // Get user's wallet
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('address')
-        .eq('user_id', userId)
-        .single();
-      
-      // Get transaction counts
-      const { count: buyCount } = await supabase
-        .from('transactions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('transaction_type', 'buy');
-        
-      const { count: sellCount } = await supabase
-        .from('transactions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('transaction_type', 'sell');
-      
+      // Return the profile with the expected structure
       res.status(200).json({
         status: 'success',
         data: {
-          ...user,
-          wallet_address: wallet?.address || null,
-          stats: {
-            buy_count: buyCount || 0,
-            sell_count: sellCount || 0,
-            total_transactions: (buyCount || 0) + (sellCount || 0)
-          }
+          user: profile.user,
+          wallets: profile.wallets
         }
       });
     } catch (error) {
-      handleError(error, res, 'Failed to get user profile');
+      console.error('Error getting user profile:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to get user profile'
+      });
     }
   }
   

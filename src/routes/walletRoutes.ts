@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { WalletController } from '../controllers/walletController';
 import { authenticateUser } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types/express';
@@ -21,8 +21,16 @@ const router = Router();
  *       404:
  *         description: Wallet not found
  */
-router.get('/', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
-  WalletController.getUserWallet(req as AuthenticatedRequest, res).catch(next));
+router.get('/', authenticateUser, (req: Request, res: Response) => {
+  WalletController.getUserWallet(req as AuthenticatedRequest, res)
+    .catch(err => {
+      console.error('Error in get user wallet route:', err);
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal server error'
+      });
+    });
+});
 
 /**
  * @swagger
@@ -54,8 +62,16 @@ router.get('/', authenticateUser, (req: Request, res: Response, next: NextFuncti
  *       404:
  *         description: Wallet not found
  */
-router.post('/private-key', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
-  WalletController.getWalletPrivateKey(req as AuthenticatedRequest, res).catch(next));
+router.post('/private-key', authenticateUser, (req: Request, res: Response) => {
+  WalletController.getWalletPrivateKey(req as AuthenticatedRequest, res)
+    .catch(err => {
+      console.error('Error in get wallet private key route:', err);
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal server error'
+      });
+    });
+});
 
 /**
  * @swagger
@@ -90,7 +106,39 @@ router.post('/private-key', authenticateUser, (req: Request, res: Response, next
  *       401:
  *         description: Unauthorized
  */
-router.get('/transactions', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
-  WalletController.getUserTransactions(req as AuthenticatedRequest, res).catch(next));
+router.get('/transactions', authenticateUser, (req: Request, res: Response) => {
+  WalletController.getUserTransactions(req as AuthenticatedRequest, res)
+    .catch(err => {
+      console.error('Error in get user transactions route:', err);
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal server error'
+      });
+    });
+});
+
+// Create a new wallet
+router.post('/', authenticateUser, (req: Request, res: Response) => {
+  WalletController.createWallet(req as AuthenticatedRequest, res)
+    .catch(err => {
+      console.error('Error in create wallet route:', err);
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal server error'
+      });
+    });
+});
+
+// Get wallet balance
+router.get('/:address/balance', authenticateUser, (req: Request, res: Response) => {
+  WalletController.getWalletBalance(req, res)
+    .catch(err => {
+      console.error('Error in wallet balance route:', err);
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal server error'
+      });
+    });
+});
 
 export default router; 

@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { TransferController } from '../controllers/transferController';
+import { authenticateUser } from '../middleware/auth';
 
 const router = Router();
 
-// Send cryptocurrency
-router.post('/send', TransferController.sendCrypto);
+// Transfer crypto
+router.post('/', authenticateUser, TransferController.sendCrypto);
 
-// Get wallet balance
-router.get('/balance', TransferController.getBalance);
+// Get transfer fee estimate
+router.get('/fee', TransferController.getTransferFee);
 
 export default router; 

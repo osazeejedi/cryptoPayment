@@ -819,35 +819,35 @@ export class BlockchainService {
       );
       
       try {
-        if (fromCrypto === 'ETH' && toCrypto === 'USDT') {
-          // ETH to USDT estimate
-          const amountIn = ethers.parseEther(amount);
-          
-          // Create swap path: ETH -> WETH -> USDT
-          const path = [this.WETH_ADDRESS[network], this.USDT_CONTRACT_ADDRESS[network]];
-          
-          // Get expected output amount
-          const amounts = await router.getAmountsOut(amountIn, path);
-          const expectedOutputAmount = amounts[1];
-          
-          // Format with USDT decimals (6)
-          return ethers.formatUnits(expectedOutputAmount, 6);
-        } else if (fromCrypto === 'USDT' && toCrypto === 'ETH') {
-          // USDT to ETH estimate
-          const decimals = await this.getTokenDecimals('USDT');
-          const amountIn = ethers.parseUnits(amount, decimals);
-          
-          // Create swap path: USDT -> WETH
-          const path = [this.USDT_CONTRACT_ADDRESS[network], this.WETH_ADDRESS[network]];
-          
-          // Get expected output amount
-          const amounts = await router.getAmountsOut(amountIn, path);
-          const expectedOutputAmount = amounts[1];
-          
-          // Format with ETH decimals (18)
-          return ethers.formatEther(expectedOutputAmount);
-        } else {
-          throw new Error(`Unsupported swap pair: ${fromCrypto} to ${toCrypto}`);
+      if (fromCrypto === 'ETH' && toCrypto === 'USDT') {
+        // ETH to USDT estimate
+        const amountIn = ethers.parseEther(amount);
+        
+        // Create swap path: ETH -> WETH -> USDT
+        const path = [this.WETH_ADDRESS[network], this.USDT_CONTRACT_ADDRESS[network]];
+        
+        // Get expected output amount
+        const amounts = await router.getAmountsOut(amountIn, path);
+        const expectedOutputAmount = amounts[1];
+        
+        // Format with USDT decimals (6)
+        return ethers.formatUnits(expectedOutputAmount, 6);
+      } else if (fromCrypto === 'USDT' && toCrypto === 'ETH') {
+        // USDT to ETH estimate
+        const decimals = await this.getTokenDecimals('USDT');
+        const amountIn = ethers.parseUnits(amount, decimals);
+        
+        // Create swap path: USDT -> WETH
+        const path = [this.USDT_CONTRACT_ADDRESS[network], this.WETH_ADDRESS[network]];
+        
+        // Get expected output amount
+        const amounts = await router.getAmountsOut(amountIn, path);
+        const expectedOutputAmount = amounts[1];
+        
+        // Format with ETH decimals (18)
+        return ethers.formatEther(expectedOutputAmount);
+      } else {
+        throw new Error(`Unsupported swap pair: ${fromCrypto} to ${toCrypto}`);
         }
       } catch (error: unknown) {
         // Check for insufficient liquidity error
@@ -1003,6 +1003,31 @@ export class BlockchainService {
     } catch (error) {
       console.error('Error transferring crypto to company wallet:', error);
       throw new Error(`Failed to transfer ${cryptoType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get estimated transfer fee for a cryptocurrency
+   * @param cryptoType Type of cryptocurrency
+   * @returns Estimated fee as a string
+   */
+  static async getTransferFee(cryptoType: string): Promise<string> {
+    try {
+      // In a real implementation, this would calculate the actual gas fee
+      // For now, return fixed values based on crypto type
+      switch (cryptoType.toUpperCase()) {
+        case 'ETH':
+          return '0.0001';
+        case 'BTC':
+          return '0.00005';
+        case 'USDT':
+          return '0.00002';
+        default:
+          return '0.0001';
+      }
+    } catch (error) {
+      console.error(`Error getting transfer fee for ${cryptoType}:`, error);
+      throw new Error(`Failed to get transfer fee for ${cryptoType}`);
     }
   }
 }// Initialize the service when the module is loaded

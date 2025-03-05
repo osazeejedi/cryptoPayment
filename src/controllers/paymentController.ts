@@ -245,8 +245,8 @@ export class PaymentController {
       });
     } catch (error) {
       console.error('Error verifying payment:', error);
-      res.status(500).json({
-        status: 'error',
+      res.status(500).json({ 
+        status: 'error', 
         message: error instanceof Error ? error.message : 'Failed to verify payment'
       });
     }

@@ -40,37 +40,66 @@ interface IUniswapRouterContract extends ethers.BaseContract {
   ): Promise<any>;
   getAmountsOut(amountIn: bigint, path: string[]): Promise<bigint[]>;
 }
-
 export class BlockchainService {
-  private static provider: IBlockchainProvider;
+  private static provider: ethers.Provider = new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/demo');
   
-  static initialize(): void {
-    try {
-      this.provider = BlockchainFactory.getProvider('ethereum');
-      
-      // Apply circuit breakers to critical methods
-      withCircuitBreaker(this.provider, 'transferCrypto', {
-        failureThreshold: 3,
-        resetTimeout: 60000 // 1 minute
-      });
-      
-      withCircuitBreaker(this.provider, 'getBalance', {
-        failureThreshold: 5,
-        resetTimeout: 30000 // 30 seconds
-      });
-      
-      console.log('BlockchainService initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize BlockchainService:', error);
-      throw error;
-    }
-  }
-  
+  /**
+   * Get balance of a wallet address
+   */
   static async getBalance(address: string, cryptoType: string = 'ETH'): Promise<string> {
     try {
-      return await this.provider.getBalance(address, cryptoType);
-    } catch (error) {
-      throw handleServiceError(error, 'blockchain');
+      // For ETH balance
+      if (cryptoType === 'ETH') {
+        const balance = await this.provider.getBalance(address);
+        return ethers.formatEther(balance);
+      }
+      
+      // For BTC (mock implementation since we're not connecting to Bitcoin network)
+      if (cryptoType === 'BTC') {
+        return '0.00000000'; // Placeholder BTC balance
+      }
+      
+      // For ERC20 tokens
+      const tokenAddresses: {[key: string]: string} = {
+        'USDT': '0xdAC17F958D2ee523a2206206994597C13D831ec7', // Mainnet USDT
+        'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'  // Mainnet USDC
+      };
+      
+      if (tokenAddresses[cryptoType]) {
+        // ERC20 token ABI (minimal for balance checking)
+        const minABI = [
+          {
+            constant: true,
+            inputs: [{ name: "_owner", type: "address" }],
+            name: "balanceOf",
+            outputs: [{ name: "balance", type: "uint256" }],
+            type: "function",
+          },
+          {
+            constant: true,
+            inputs: [],
+            name: "decimals",
+            outputs: [{ name: "", type: "uint8" }],
+            type: "function",
+          }
+        ];
+        
+        const tokenContract = new ethers.Contract(
+          tokenAddresses[cryptoType],
+          minABI,
+          this.provider
+        );
+        
+        const balance = await tokenContract.balanceOf(address);
+        const decimals = await tokenContract.decimals();
+        
+        return ethers.formatUnits(balance, decimals);
+      }
+      
+      throw new Error(`Unsupported cryptocurrency type: ${cryptoType}`);
+    } catch (error: unknown) {
+      console.error('[blockchain] Error:', error);
+      throw new Error(`BlockchainError: Blockchain operation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   
@@ -976,7 +1005,6 @@ export class BlockchainService {
       throw new Error(`Failed to transfer ${cryptoType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-}
-
-// Initialize the service when the module is loaded
+}// Initialize the service when the module is loaded
 export const blockchainService = new BlockchainService();
+

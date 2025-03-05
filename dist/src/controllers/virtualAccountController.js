@@ -150,11 +150,72 @@ class VirtualAccountController {
             // Check account status with Korapay
             const response = await axios_1.default.get(`https://api.korapay.com/merchant/api/v1/virtual-bank-account/${reference}`, {
                 headers: {
-                    'Authorization': `
+                    'Authorization': `Bearer ${env_1.config.payment.korapay.secretKey}`
+                }
+            });
+            // Update account status if needed
+            if (response.data.data.status !== account.status) {
+                await supabase_1.supabase
+                    .from('virtual_accounts')
+                    .update({ status: response.data.data.status })
+                    .eq('reference', reference);
+                account.status = response.data.data.status;
+            }
+            res.status(200).json({
+                status: 'success',
+                data: {
+                    ...account,
+                    korapay_details: response.data.data
                 }
             });
         }
-        finally { }
+        catch (error) {
+            (0, errorHandler_1.handleError)(error, res, 'Failed to get virtual account details');
+        }
+    }
+    /**
+     * Handle Korapay webhook for virtual account transactions
+     */
+    static async handleWebhook(req, res) {
+        try {
+            const { event, data } = req.body;
+            // Verify webhook signature
+            // This should be implemented for production
+            if (event === 'charge.success' && data.payment_method === 'virtual_account') {
+                const reference = data.reference;
+                // Update virtual account status
+                const { data: account, error } = await supabase_1.supabase
+                    .from('virtual_accounts')
+                    .update({
+                    status: 'completed',
+                    transaction_reference: data.transaction_reference,
+                    paid_at: new Date().toISOString()
+                })
+                    .eq('reference', reference)
+                    .select()
+                    .single();
+                if (!error && account) {
+                    // Create transaction record
+                    await supabase_1.supabase.from('transactions').insert({
+                        user_id: account.user_id,
+                        transaction_type: 'deposit',
+                        amount: account.amount,
+                        currency: account.currency,
+                        status: 'completed',
+                        payment_method: 'virtual_account',
+                        reference: reference,
+                        transaction_reference: data.transaction_reference
+                    });
+                    // Credit user's wallet (implementation depends on your system)
+                    // This is where you would add the funds to the user's wallet
+                }
+            }
+            res.status(200).json({ received: true });
+        }
+        catch (error) {
+            console.error('Webhook error:', error);
+            res.status(500).json({ error: 'Webhook processing failed' });
+        }
     }
 }
 exports.VirtualAccountController = VirtualAccountController;

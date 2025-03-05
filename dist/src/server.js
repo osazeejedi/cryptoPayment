@@ -7,11 +7,10 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const app_1 = __importDefault(require("./app"));
 const env_1 = require("../config/env");
 const transactionRecoveryJob_1 = require("./jobs/transactionRecoveryJob");
-const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 // Load environment variables
 dotenv_1.default.config();
 // Get port from environment variables or use default
-const PORT = env_1.config.app.port;
+const PORT = env_1.config.server.port || 3000;
 // Start the server
 app_1.default.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
@@ -21,5 +20,3 @@ app_1.default.listen(PORT, () => {
 });
 // Schedule transaction recovery job to run every 10 minutes
 setInterval(transactionRecoveryJob_1.recoverPendingTransactions, 10 * 60 * 1000);
-// Add this line where you register your routes
-app_1.default.use('/api/auth', authRoutes_1.default);

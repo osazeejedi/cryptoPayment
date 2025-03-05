@@ -58,7 +58,7 @@ export class VirtualAccountController {
       
       // Make API request to Korapay
       const response = await axios.post(
-        `${config.payment.korapay.baseUrl}/merchant/api/v1/virtual-bank-account`,
+        'https://api.korapay.com/merchant/api/v1/virtual-bank-account',
         payload,
         {
           headers: {
@@ -167,7 +167,7 @@ export class VirtualAccountController {
       
       // Check account status with Korapay
       const response = await axios.get(
-        `${config.payment.korapay.baseUrl}/merchant/api/v1/virtual-bank-account/${reference}`,
+        `https://api.korapay.com/merchant/api/v1/virtual-bank-account/${reference}`,
         {
           headers: {
             'Authorization': `Bearer ${config.payment.korapay.secretKey}`
@@ -246,4 +246,4 @@ export class VirtualAccountController {
       res.status(500).json({ error: 'Webhook processing failed' });
     }
   }
-} 
+}

@@ -9,7 +9,42 @@ const paymentController_1 = require("../controllers/paymentController");
 const authController_1 = require("../controllers/authController");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
-// Transaction endpoints
+/**
+ * @swagger
+ * /api/buy:
+ *   post:
+ *     summary: Create a new buy order
+ *     tags: [Buy]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *               - cryptoType
+ *               - walletAddress
+ *             properties:
+ *               amount:
+ *                 type: string
+ *                 description: Amount in Naira
+ *               cryptoType:
+ *                 type: string
+ *                 description: Type of cryptocurrency (ETH, BTC)
+ *               walletAddress:
+ *                 type: string
+ *                 description: Wallet address to receive crypto
+ *     responses:
+ *       200:
+ *         description: Buy order created successfully
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/buy', auth_1.authenticateUser, (req, res, next) => buyController_1.BuyController.initiatePurchase(req, res).catch(next));
 router.post('/sell', auth_1.authenticateUser, (req, res, next) => sellController_1.SellController.sellRequest(req, res).catch(next));
 // Payment endpoints

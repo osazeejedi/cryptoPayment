@@ -14,6 +14,8 @@ import authRoutes from './routes/authRoutes';
 import walletRoutes from './routes/walletRoutes';
 import { config } from '../config/env';
 import { TransactionMonitor } from './jobs/transactionMonitor';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './config/swagger';
 
 // Create Express application
 const app = express();
@@ -27,6 +29,9 @@ app.use(cors()); // Enable CORS
 app.use(express.json()); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(apiRateLimiter); // Apply rate limiting
+
+// Add Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 // Define routes
 app.use('/api', apiRoutes);  // Register all API routes

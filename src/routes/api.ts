@@ -10,7 +10,42 @@ import { AuthenticatedRequest } from '../types/express';
 
 const router = Router();
 
-// Transaction endpoints
+/**
+ * @swagger
+ * /api/buy:
+ *   post:
+ *     summary: Create a new buy order
+ *     tags: [Buy]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *               - cryptoType
+ *               - walletAddress
+ *             properties:
+ *               amount:
+ *                 type: string
+ *                 description: Amount in Naira
+ *               cryptoType:
+ *                 type: string
+ *                 description: Type of cryptocurrency (ETH, BTC)
+ *               walletAddress:
+ *                 type: string
+ *                 description: Wallet address to receive crypto
+ *     responses:
+ *       200:
+ *         description: Buy order created successfully
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/buy', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
   BuyController.initiatePurchase(req as AuthenticatedRequest, res).catch(next));
 router.post('/sell', authenticateUser, (req: Request, res: Response, next: NextFunction) => 

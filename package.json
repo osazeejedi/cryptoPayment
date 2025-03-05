@@ -65,6 +65,8 @@
     "helmet": "^7.0.0",
     "joi": "^17.11.0",
     "pg": "^8.13.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
     "web3": "^4.1.2",
     "winston": "^3.11.0"
@@ -76,6 +78,7 @@
     "@types/node": "^20.17.22",
     "@types/pg": "^8.11.11",
     "@types/supertest": "^6.0.2",
+    "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^10.0.0",
     "axios": "^1.8.1",
     "crypto": "^1.0.1",

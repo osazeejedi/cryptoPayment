@@ -4,7 +4,7 @@ import { BuyController } from '../controllers/buyController';
 const router = Router();
 
 // Use the correct method name that exists in BuyController
-router.get('/verify/:transaction_id', BuyController.verifyBuyTransaction);
+router.get('/verify/:transaction_id', BuyController.verifyPayment);
 
 // Or if you need to create the method in BuyController:
 // Uncomment one of these options:

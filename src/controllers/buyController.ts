@@ -6,6 +6,9 @@ import { TransactionVerificationService } from '../services/transactionVerificat
 import { KorapayService } from '../services/korapayService';
 import { PriceService } from '../services/priceService';
 import { handleError } from '../utils/errorHandler';
+import { AuthenticatedRequest } from '../types/express';
+import { supabase } from '../../config/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 export class BuyController {
   static async buyRequest(req: Request, res: Response): Promise<void> {
@@ -257,26 +260,26 @@ export class BuyController {
       });
       
       // Initialize payment with Korapay
-      const paymentData = await KorapayService.initializePayment({
-        amount,
-        currency: 'NGN',
-        reference: transaction.id,
-        redirectUrl: `${process.env.APP_BASE_URL}/payment/callback`,
-        customerEmail: req.body.email || 'customer@example.com',
-        customerName: req.body.name || 'Customer',
-        metadata: {
-          transactionId: transaction.id,
-          cryptoType,
-          cryptoAmount,
-          walletAddress
-        }
-      });
+      const paymentData = await KorapayService.initializeCheckout(
+        parseFloat(amount).toString(),
+        'NGN',
+        `BUY-${uuidv4()}`,
+        `${config.app.baseUrl}/payment/success`,
+        req.body.email || 'customer@example.com',
+        req.body.name || 'Customer',
+        {
+          crypto_type: cryptoType,
+          wallet_address: walletAddress,
+          crypto_amount: cryptoAmount
+        },
+        null
+      );
       
       return res.status(200).json({
         success: true,
         message: 'Payment initialized successfully',
         data: {
-          paymentUrl: paymentData.checkoutUrl,
+          paymentUrl: paymentData.checkout_url,
           reference: transaction.id,
           cryptoAmount,
           fiatAmount: amount,
@@ -293,134 +296,111 @@ export class BuyController {
   }
   
   /**
-   * Process webhook from payment provider
+   * Get a buy order by ID
    */
-  static async processWebhook(req: Request, res: Response) {
+  static async getBuyOrderById(req: Request, res: Response): Promise<void> {
     try {
-      console.log('Received webhook:', JSON.stringify(req.body, null, 2));
+      const { orderId } = req.params;
       
-      // Verify webhook signature
-      const isValid = KorapayService.verifyWebhook(req);
-      if (!isValid) {
-        console.error('Invalid webhook signature');
-        return res.status(400).json({ success: false, message: 'Invalid signature' });
-      }
+      // Get the order from the database
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
       
-      const { event, data } = req.body;
-      
-      // Handle successful payment
-      if (event === 'charge.success') {
-        const { reference, status } = data;
-        
-        // Get transaction from database
-        const transaction = await DatabaseService.getTransactionByReference(reference);
-        if (!transaction) {
-          console.error(`Transaction not found for reference: ${reference}`);
-          return res.status(404).json({ success: false, message: 'Transaction not found' });
-        }
-        
-        // Update transaction status
-        await DatabaseService.updateTransaction(transaction.id, { status: 'paid' });
-        
-        // Transfer crypto to customer
-        const txHash = await BlockchainService.transferCrypto(
-          transaction.walletAddress,
-          transaction.cryptoAmount,
-          transaction.cryptoType
-        );
-        
-        // Update transaction with blockchain tx hash
-        await DatabaseService.updateTransaction(transaction.id, { 
-          status: 'completed',
-          blockchainTxHash: txHash
-        });
-        
-        console.log(`Crypto transfer completed: ${txHash}`);
-      }
-      
-      // Return success to acknowledge webhook
-      return res.status(200).json({ success: true, message: 'Webhook processed' });
-    } catch (error) {
-      console.error('Error processing webhook:', error);
-      // Still return 200 to acknowledge receipt
-      return res.status(200).json({ success: false, message: 'Error processing webhook' });
-    }
-  }
-  
-  /**
-   * Check transaction status
-   */
-  static async checkTransactionStatus(req: Request, res: Response) {
-    try {
-      const { transactionId } = req.params;
-      
-      // Get transaction from database
-      const transaction = await DatabaseService.getTransaction(transactionId);
-      if (!transaction) {
-        return res.status(404).json({ success: false, message: 'Transaction not found' });
-      }
-      
-      // If transaction has a blockchain tx hash, check its status
-      if (transaction.blockchainTxHash && transaction.status === 'completed') {
-        const isConfirmed = await BlockchainService.verifyTransaction(
-          transaction.blockchainTxHash,
-          transaction.cryptoType
-        );
-        
-        // Update confirmation status if needed
-        if (isConfirmed && transaction.status !== 'confirmed') {
-          await DatabaseService.updateTransaction(transaction.id, { status: 'confirmed' });
-          transaction.status = 'confirmed';
-        }
-      }
-      
-      return res.status(200).json({
-        success: true,
-        data: {
-          id: transaction.id,
-          status: transaction.status,
-          cryptoAmount: transaction.cryptoAmount,
-          cryptoType: transaction.cryptoType,
-          walletAddress: transaction.walletAddress,
-          blockchainTxHash: transaction.blockchainTxHash
-        }
-      });
-    } catch (error) {
-      console.error('Error checking transaction status:', error);
-      return res.status(500).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to check transaction status'
-      });
-    }
-  }
-
-  static async verifyBuyTransaction(req: Request, res: Response): Promise<void> {
-    try {
-      const { transaction_id } = req.params;
-      
-      // Verify the transaction
-      const transaction = await DatabaseService.getTransaction(transaction_id);
-      
-      if (!transaction) {
+      if (error) {
+        console.error('Error fetching order:', error);
         res.status(404).json({
           status: 'error',
-          message: 'Transaction not found'
+          message: 'Order not found'
         });
         return;
       }
       
+      // Return the order
       res.status(200).json({
         status: 'success',
-        data: {
-          transaction
-        }
+        data: order
       });
     } catch (error) {
-      console.error('Error verifying transaction:', error);
-      res.status(500).json({
-        status: 'error',
-        message: error instanceof Error ? error.message : 'Failed to verify transaction'
-      });
+      handleError(error, res, 'Failed to retrieve buy order');
     }
+  }
+  
+  /**
+   * Process payment webhook
+   */
+  static async processPaymentWebhook(req: Request, res: Response): Promise<void> {
+    try {
+      const { event, data } = req.body;
+      
+      // Verify webhook signature
+      const signature = req.headers['x-korapay-signature'];
+      if (!signature || !KorapayService.verifyWebhook(req)) {
+        res.status(401).json({
+          status: 'error',
+          message: 'Invalid webhook signature'
+        });
+        return;
+      }
+      
+      // Check if this is a successful payment
+      if (event !== 'charge.success' || data.status !== 'success') {
+        res.status(200).json({
+          status: 'success',
+          message: 'Webhook received but not processed'
+        });
+        return;
+      }
+      
+      // Extract metadata
+      const { crypto_type, wallet_address } = data.metadata;
+      const amount = data.amount;
+      
+      // Update order status
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ status: 'paid' })
+        .eq('reference', data.reference);
+      
+      if (updateError) {
+        console.error('Error updating order status:', updateError);
+      }
+      
+      // Initiate blockchain transfer
+      const txHash = await BlockchainService.transferCrypto(
+        wallet_address,
+        amount,
+        crypto_type
+      );
+      
+      // Update order with transaction hash
+      if (txHash) {
+        await supabase
+          .from('orders')
+          .update({ 
+            status: 'completed',
+            transaction_hash: txHash
+          })
+          .eq('reference', data.reference);
+      }
+      
+      // Return success
+      res.status(200).json({
+        status: 'success',
+        message: 'Payment processed successfully',
+        data: { txHash }
+      });
+    } catch (error) {
+      handleError(error, res, 'Failed to process payment webhook');
+    }
+  }
+
+  /**
+   * Create a buy order (alias for initiatePurchase)
+   */
+  static async createBuyOrder(req: AuthenticatedRequest, res: Response) {
+    return this.initiatePurchase(req, res);
   }
 } 

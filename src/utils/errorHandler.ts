@@ -15,7 +15,12 @@ export class AppError extends Error {
   }
 }
 
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
+export const errorHandler = (
+  err: Error | AppError, 
+  req: Request, 
+  res: Response, 
+  next: NextFunction
+): void => {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       status: err.status,
@@ -30,16 +35,18 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
   }
 };
 
-export const handleError = (error: unknown, res: Response, defaultMessage: string = 'An error occurred'): Response => {
+export const handleError = (
+  error: unknown, 
+  res: Response, 
+  defaultMessage = 'An error occurred'
+): Response => {
   console.error('Error:', error);
-  
   if (error instanceof Error) {
     return res.status(500).json({
       success: false,
       message: error.message
     });
   }
-  
   return res.status(500).json({
     success: false,
     message: defaultMessage

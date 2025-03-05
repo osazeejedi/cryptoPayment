@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/userController';
-import { authenticate as authMiddleware } from '../middleware/auth';
+import { authenticateUser } from '../middleware/auth';
 
 const router = Router();
 
@@ -8,7 +8,7 @@ const router = Router();
 router.post('/register', UserController.registerUser);
 
 // Protected routes
-router.use('/:userId', authMiddleware);
+router.use('/:userId', authenticateUser);
 
 // Get user profile
 router.get('/:userId/profile', UserController.getUserProfile);

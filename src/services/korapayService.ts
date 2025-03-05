@@ -349,13 +349,7 @@ export class KorapayService {
    * @returns Checkout URL and reference
    */
   static async initializeCheckout(
-    amount: string,
-    email: string,
-    name: string,
-    cryptoAmount: string,
-    cryptoType: string,
-    walletAddress: string
-  ): Promise<{ checkout_url: string; reference: string }> {
+amount: string, email: string, name: string, cryptoAmount: string, cryptoType: string, walletAddress: string, p0: { crypto_type: any; wallet_address: any; crypto_amount: string; }, p1: null  ): Promise<{ checkout_url: string; reference: string }> {
     try {
       const reference = this.generateReference();
       

@@ -379,8 +379,14 @@ export class PaymentController {
         email,
         name,
         cryptoAmount,
-        crypto_type.toString(),
-        wallet_address
+        crypto_type,
+        wallet_address,
+        {
+          crypto_type: crypto_type,
+          wallet_address: wallet_address,
+          crypto_amount: cryptoAmount
+        },
+        null
       );
       
       res.status(200).json({

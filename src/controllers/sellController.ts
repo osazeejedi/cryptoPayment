@@ -12,33 +12,30 @@ export class SellController {
    */
   static async verifyBankAccount(req: Request, res: Response): Promise<void> {
     try {
-      console.log("Received bank account verification request:", JSON.stringify(req.body, null, 2));
-      
       const { account_number, bank_code } = req.body;
       
+      // Validate request
       if (!account_number || !bank_code) {
-        res.status(400).json({ 
-          status: 'error', 
-          message: 'Account number and bank code are required' 
+        res.status(400).json({
+          status: 'error',
+          message: 'Account number and bank code are required'
         });
         return;
       }
       
-      // Verify bank account
-      const accountDetails = await KorapayService.verifyBankAccount(
-        account_number,
-        bank_code
-      );
+      // Verify account with Korapay
+      const accountDetails = await KorapayService.verifyBankAccount(account_number, bank_code);
       
+      // Return account details
       res.status(200).json({
         status: 'success',
         data: accountDetails
       });
     } catch (error) {
       console.error('Error verifying bank account:', error);
-      res.status(500).json({ 
-        status: 'error', 
-        message: 'Failed to verify bank account' 
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to verify bank account'
       });
     }
   }

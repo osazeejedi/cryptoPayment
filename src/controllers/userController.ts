@@ -2,36 +2,107 @@ import { Request, Response } from 'express';
 import { UserService } from '../services/userService';
 import { DatabaseService } from '../services/databaseService';
 import { WalletService } from '../services/walletService';
+import { supabase } from '../../config/supabase';
+import { AuthenticatedRequest } from '../types/express';
+import { handleError } from '../utils/errorHandler';
 
 export class UserController {
   /**
    * Get user profile
    */
-  static async getUserProfile(req: Request, res: Response): Promise<void> {
+  static async getUserProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const userId = req.params.userId;
+      const userId = req.user.id;
       
-      // Verify user ID matches authenticated user
-      if (req.user?.id !== userId) {
-        res.status(403).json({
+      // Get user data from database
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('id, email, name, created_at, updated_at, profile_image, phone_number, is_verified')
+        .eq('id', userId)
+        .single();
+      
+      if (error || !user) {
+        res.status(404).json({
           status: 'error',
-          message: 'Unauthorized access to user profile'
+          message: 'User not found'
         });
         return;
       }
       
-      const profile = await UserService.getUserProfile(userId);
+      // Get user's wallet
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('address')
+        .eq('user_id', userId)
+        .single();
+      
+      // Get transaction counts
+      const { count: buyCount } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('transaction_type', 'buy');
+        
+      const { count: sellCount } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('transaction_type', 'sell');
       
       res.status(200).json({
         status: 'success',
-        data: profile
+        data: {
+          ...user,
+          wallet_address: wallet?.address || null,
+          stats: {
+            buy_count: buyCount || 0,
+            sell_count: sellCount || 0,
+            total_transactions: (buyCount || 0) + (sellCount || 0)
+          }
+        }
       });
     } catch (error) {
-      console.error('Error getting user profile:', error);
-      res.status(500).json({
-        status: 'error',
-        message: error instanceof Error ? error.message : 'Failed to get user profile'
+      handleError(error, res, 'Failed to get user profile');
+    }
+  }
+  
+  /**
+   * Update user profile
+   */
+  static async updateUserProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user.id;
+      const { name, phone_number, profile_image } = req.body;
+      
+      // Update user data
+      const { data: updatedUser, error } = await supabase
+        .from('users')
+        .update({
+          name: name,
+          phone_number: phone_number,
+          profile_image: profile_image,
+          updated_at: new Date()
+        })
+        .eq('id', userId)
+        .select('id, email, name, created_at, updated_at, profile_image, phone_number, is_verified')
+        .single();
+      
+      if (error) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Failed to update profile',
+          details: error.message
+        });
+        return;
+      }
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Profile updated successfully',
+        data: updatedUser
       });
+    } catch (error) {
+      handleError(error, res, 'Failed to update user profile');
     }
   }
   

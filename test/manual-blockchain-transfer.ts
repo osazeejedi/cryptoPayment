@@ -17,7 +17,7 @@ async function manualBlockchainTransfer() {
       });
     });
     
-    if (!BlockchainService.isValidAddress(walletAddress)) {
+    if (!BlockchainService.isValidAddress(walletAddress, 'ETH')) {
       console.error('Invalid wallet address. Please provide a valid Ethereum address.');
       rl.close();
       return;

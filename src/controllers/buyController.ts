@@ -242,7 +242,7 @@ export class BuyController {
         amount: parseFloat(amount).toString(),
         currency: 'NGN',
         reference: transactionReference,
-        redirectUrl: `${config.app.baseUrl}/api/buy/success?reference=${transactionReference}`,
+        redirectUrl: `${config.app.baseUrl}/api/buy/success`,
         customerEmail: email,
         customerName: name,
         metadata: {

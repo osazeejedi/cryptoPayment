@@ -199,9 +199,9 @@ class BuyController {
                 });
             }
             // Get current crypto price - use a public method
-            const cryptoPrice = await priceService_1.PriceService.getCurrentPrice(cryptoType);
+            // const cryptoPrice = await PriceService.convertNairaToCrypto(amount, "ETH");
             // Calculate crypto amount based on fiat amount
-            const cryptoAmount = (parseFloat(amount) / cryptoPrice).toFixed(8);
+            const cryptoAmount = await priceService_1.PriceService.convertNairaToCrypto(amount, "ETH");
             // Create transaction record in database
             const transaction = await databaseService_1.DatabaseService.createTransaction({
                 user_id: 'anonymous',
@@ -214,16 +214,25 @@ class BuyController {
                 transaction_type: 'buy'
             });
             // Initialize payment with Korapay
-            const paymentData = await korapayService_1.KorapayService.initializeCheckout(parseFloat(amount).toString(), 'NGN', `BUY-${(0, uuid_1.v4)()}`, `${env_1.config.app.baseUrl}/payment/success`, req.body.email || 'customer@example.com', req.body.name || 'Customer', {
-                crypto_type: cryptoType,
-                wallet_address: walletAddress,
-                crypto_amount: cryptoAmount
-            }, null);
+            const paymentData = await korapayService_1.KorapayService.initializeCheckout({
+                amount: parseFloat(amount).toString(),
+                currency: 'NGN',
+                reference: `BUY-${(0, uuid_1.v4)()}`,
+                redirectUrl: `${env_1.config.app.baseUrl}/payment/success`,
+                customerEmail: req.body.email || 'customer@example.com',
+                customerName: req.body.name || 'Customer',
+                metadata: {
+                    transaction_id: transaction.id,
+                    crypto_amount: cryptoAmount,
+                    crypto_type: cryptoType,
+                    wallet_address: walletAddress
+                }
+            });
             return res.status(200).json({
                 success: true,
                 message: 'Payment initialized successfully',
                 data: {
-                    paymentUrl: paymentData.checkout_url,
+                    paymentUrl: paymentData.checkoutUrl,
                     reference: transaction.id,
                     cryptoAmount,
                     fiatAmount: amount,

@@ -199,7 +199,7 @@ class DatabaseService {
     /**
      * Get transaction by reference (same as ID in this case)
      */
-    static async getTransactionByReference(reference) {
+    static async getTransactionByReference(reference, p0) {
         return this.getTransaction(reference);
     }
     /**

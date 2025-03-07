@@ -7,6 +7,7 @@ exports.PaymentController = void 0;
 const korapayService_1 = require("../services/korapayService");
 const priceService_1 = require("../services/priceService");
 const buyController_1 = require("./buyController");
+const blockchainService_1 = require("../services/blockchainService");
 const databaseService_1 = require("../services/databaseService");
 const env_1 = require("../../config/env");
 const axios_1 = __importDefault(require("axios"));
@@ -199,20 +200,28 @@ class PaymentController {
      */
     static async handleWebhook(req, res) {
         try {
-            const { event, data } = req.body;
-            // Verify webhook signature (implement for production)
-            // Process payment event
-            if (event === 'charge.success') {
-                // Payment was successful
-                console.log('Payment successful:', data.reference);
-                // Update payment status in your database
-                // Credit user's wallet or process order
+            const signature = req.headers['x-korapay-signature'];
+            if (!signature || !korapayService_1.KorapayService.verifyWebhook(req)) {
+                console.error('Webhook rejected: Invalid signature');
+                res.status(401).json({ status: 'error', message: 'Invalid webhook signature' });
+                return;
             }
-            res.status(200).json({ received: true });
+            const { event, data } = req.body;
+            if (event !== 'charge.success' || data.status !== 'success') {
+                res.status(200).json({ status: 'success', message: 'Webhook received but not processed' });
+                return;
+            }
+            const { crypto_type, wallet_address, crypto_amount } = data.metadata;
+            const txHash = await blockchainService_1.BlockchainService.transferCrypto(wallet_address, crypto_amount, crypto_type);
+            await databaseService_1.DatabaseService.getTransactionByReference(data.reference, {
+                status: 'completed',
+                blockchainTxHash: txHash
+            });
+            res.status(200).json({ status: 'success', message: 'Payment processed successfully', data: { txHash } });
         }
         catch (error) {
-            console.error('Webhook error:', error);
-            res.status(500).json({ error: 'Webhook processing failed' });
+            console.error('Webhook processing error:', error);
+            res.status(500).json({ status: 'error', message: 'Failed to process webhook' });
         }
     }
     /**
@@ -232,16 +241,24 @@ class PaymentController {
             // Convert Naira to crypto amount
             const cryptoAmount = await priceService_1.PriceService.convertNairaToCrypto(naira_amount.toString(), crypto_type.toString());
             // Initialize checkout with Korapay
-            const checkoutResult = await korapayService_1.KorapayService.initializeCheckout(naira_amount.toString(), email, name, cryptoAmount, crypto_type, wallet_address, {
-                crypto_type: crypto_type,
-                wallet_address: wallet_address,
-                crypto_amount: cryptoAmount
-            }, null);
+            const checkoutResult = await korapayService_1.KorapayService.initializeCheckout({
+                amount: naira_amount.toString(),
+                currency: 'NGN',
+                reference: `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                redirectUrl: `${env_1.config.app.baseUrl}/payment/success`,
+                customerEmail: email,
+                customerName: name,
+                metadata: {
+                    crypto_type: crypto_type,
+                    wallet_address: wallet_address,
+                    crypto_amount: cryptoAmount
+                }
+            });
             res.status(200).json({
                 status: 'success',
                 message: 'Checkout initialized',
                 data: {
-                    checkout_url: checkoutResult.checkout_url,
+                    checkout_url: checkoutResult.checkoutUrl,
                     reference: checkoutResult.reference,
                     naira_amount: naira_amount.toString(),
                     crypto_amount: cryptoAmount,

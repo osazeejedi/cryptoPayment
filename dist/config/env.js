@@ -54,8 +54,8 @@ exports.config = {
     },
     payment: {
         korapay: {
-            publicKey: process.env.KORAPAY_PUBLIC_KEY || process.env.KORAPAY_PUBLIC_KEY_ALT || '',
-            secretKey: process.env.KORAPAY_SECRET_KEY || process.env.KORAPAY_SECRET_KEY_ALT || '',
+            publicKey: process.env.KORAPAY_PUBLIC_KEY || '',
+            secretKey: process.env.KORAPAY_SECRET_KEY || '',
             callbackUrl: process.env.KORAPAY_CALLBACK_URL || 'http://localhost:3000/api/payment/webhook'
         },
     },

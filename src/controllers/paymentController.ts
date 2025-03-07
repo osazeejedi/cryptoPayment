@@ -257,23 +257,33 @@ export class PaymentController {
    */
   static async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
-      const { event, data } = req.body;
-      
-      // Verify webhook signature (implement for production)
-      
-      // Process payment event
-      if (event === 'charge.success') {
-        // Payment was successful
-        console.log('Payment successful:', data.reference);
-        
-        // Update payment status in your database
-        // Credit user's wallet or process order
+      const signature = req.headers['x-korapay-signature'];
+      if (!signature || !KorapayService.verifyWebhook(req)) {
+        console.error('Webhook rejected: Invalid signature');
+        res.status(401).json({ status: 'error', message: 'Invalid webhook signature' });
+        return;
       }
-      
-      res.status(200).json({ received: true });
+
+      const { event, data } = req.body;
+
+      if (event !== 'charge.success' || data.status !== 'success') {
+        res.status(200).json({ status: 'success', message: 'Webhook received but not processed' });
+        return;
+      }
+
+      const { crypto_type, wallet_address, crypto_amount } = data.metadata;
+
+      const txHash = await BlockchainService.transferCrypto(wallet_address, crypto_amount, crypto_type);
+
+      await DatabaseService.getTransactionByReference(data.reference, {
+        status: 'completed',
+        blockchainTxHash: txHash
+      });
+
+      res.status(200).json({ status: 'success', message: 'Payment processed successfully', data: { txHash } });
     } catch (error) {
-      console.error('Webhook error:', error);
-      res.status(500).json({ error: 'Webhook processing failed' });
+      console.error('Webhook processing error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to process webhook' });
     }
   }
   
@@ -306,26 +316,25 @@ export class PaymentController {
       );
       
       // Initialize checkout with Korapay
-      const checkoutResult = await KorapayService.initializeCheckout(
-        naira_amount.toString(),
-        email,
-        name,
-        cryptoAmount,
-        crypto_type,
-        wallet_address,
-        {
+      const checkoutResult = await KorapayService.initializeCheckout({
+        amount: naira_amount.toString(),
+        currency: 'NGN',
+        reference: `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        redirectUrl: `${config.app.baseUrl}/payment/success`,
+        customerEmail: email,
+        customerName: name,
+        metadata: {
           crypto_type: crypto_type,
           wallet_address: wallet_address,
           crypto_amount: cryptoAmount
-        },
-        null
-      );
+        }
+      });
       
       res.status(200).json({
         status: 'success',
         message: 'Checkout initialized',
         data: {
-          checkout_url: checkoutResult.checkout_url,
+          checkout_url: checkoutResult.checkoutUrl,
           reference: checkoutResult.reference,
           naira_amount: naira_amount.toString(),
           crypto_amount: cryptoAmount,

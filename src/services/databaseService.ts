@@ -233,7 +233,7 @@ export class DatabaseService {
   /**
    * Get transaction by reference (same as ID in this case)
    */
-  static async getTransactionByReference(reference: string) {
+  static async getTransactionByReference(reference: string, p0?: { status: string; blockchainTxHash: string; }) {
     return this.getTransaction(reference);
   }
   

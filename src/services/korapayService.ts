@@ -348,59 +348,37 @@ export class KorapayService {
    * @param walletAddress User's wallet address
    * @returns Checkout URL and reference
    */
-  static async initializeCheckout(
-amount: string, email: string, name: string, cryptoAmount: string, cryptoType: string, walletAddress: string, p0: { crypto_type: any; wallet_address: any; crypto_amount: string; }, p1: null  ): Promise<{ checkout_url: string; reference: string }> {
+  static async initializeCheckout(data: PaymentInitData) {
     try {
-      const reference = this.generateReference();
-      
-      // Use both the regular webhook URL and the debug endpoint
-      const regularWebhookUrl = this.CALLBACK_URL;
-      const debugWebhookUrl = `${config.payment.korapay.callbackUrl.replace('/api/payment/webhook', '/debug/log')}`;
-      
-      // Choose which webhook URL to use
-      // For testing, we'll use the debug endpoint
-      const webhookUrl = debugWebhookUrl;
-      
-      console.log('Using webhook URL:', webhookUrl);
-      
       const payload = {
-        reference,
-        amount,
-        currency: 'NGN',
+        amount: data.amount,
+        currency: data.currency,
+        reference: data.reference,
+        notification_url: this.CALLBACK_URL,
+        redirect_url: data.redirectUrl,
         customer: {
-          name,
-          email
+          email: data.customerEmail,
+          name: data.customerName
         },
-        notification_url: webhookUrl,
-        redirect_url: `${config.app.baseUrl}/api/payment/success`,
-        channels: ['card', 'bank_transfer', 'mobile_money'], // Add mobile_money as a payment channel
-        metadata: {
-          crypto_amount: cryptoAmount,
-          crypto_type: cryptoType,
-          wallet_address: walletAddress
-        }
+        metadata: data.metadata
       };
-      
-      console.log('Checkout initialization payload:', JSON.stringify(payload, null, 2));
-      
+
       const response = await axios.post(
         `${this.BASE_URL}/charges/initialize`,
         payload,
-        {
-          headers: this.getHeaders()
-        }
+        { headers: this.getHeaders() }
       );
-      
+
       if (!response.data.status) {
         throw new Error(response.data.message || 'Failed to initialize checkout');
       }
-      
+
       return {
-        checkout_url: response.data.data.checkout_url,
-        reference: response.data.data.reference
+        reference: response.data.data.reference,
+        checkoutUrl: response.data.data.checkout_url
       };
     } catch (error) {
-      console.error('Error initializing Korapay checkout:', error);
+      console.error('Korapay initializeCheckout error:', error);
       throw new Error('Failed to initialize checkout');
     }
   }
@@ -690,18 +668,24 @@ amount: string, email: string, name: string, cryptoAmount: string, cryptoType: s
     try {
       const signature = req.headers['x-korapay-signature'] as string;
       if (!signature) {
+        console.error('Webhook verification failed: Missing signature');
         return false;
       }
-      
+
       const payload = JSON.stringify(req.body);
       const hash = crypto
         .createHmac('sha256', this.SECRET_KEY)
         .update(payload)
         .digest('hex');
-      
-      return hash === signature;
+
+      const isValid = hash === signature;
+      if (!isValid) {
+        console.error('Webhook verification failed: Invalid signature');
+      }
+
+      return isValid;
     } catch (error) {
-      console.error('Error verifying webhook:', error);
+      console.error('Webhook verification error:', error);
       return false;
     }
   }

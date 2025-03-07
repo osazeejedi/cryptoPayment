@@ -46,28 +46,12 @@ export class PriceService {
    */
   static async convertNairaToCrypto(nairaAmount: string, cryptoType: string): Promise<string> {
     try {
-      // Map crypto types to CoinMarketCap symbols
-      const cryptoSymbol = cryptoType.toUpperCase();
-      
-      // Get price (either from cache or API)
-      const priceInNaira = await this.getCryptoPrice(cryptoSymbol);
-      
-      // Remove commas if present in the input
-      const cleanNairaAmount = nairaAmount.replace(/,/g, '');
-      
-      // Calculate crypto value
-      const cryptoValue = parseFloat(cleanNairaAmount) / priceInNaira;
-      
-      // Format with appropriate precision
-      // Use 8 decimal places for BTC, 6 for ETH, 2 for others
-      let precision = 2;
-      if (cryptoSymbol === 'BTC') precision = 8;
-      else if (cryptoSymbol === 'ETH') precision = 6;
-      
-      return cryptoValue.toFixed(precision);
+      const cryptoPrice = await this.getCryptoPrice(cryptoType);
+      const cryptoAmount = (parseFloat(nairaAmount) / cryptoPrice).toFixed(8);
+      return cryptoAmount;
     } catch (error) {
       console.error('Error converting Naira to crypto:', error);
-      throw new Error('Failed to convert Naira to cryptocurrency');
+      throw new Error('Failed to convert Naira to crypto');
     }
   }
 

@@ -259,26 +259,26 @@ export class BuyController {
       });
       
       // Initialize payment with Korapay
-      const paymentData = await KorapayService.initializeCheckout(
-        parseFloat(amount).toString(),
-        'NGN',
-        `BUY-${uuidv4()}`,
-        `${config.app.baseUrl}/payment/success`,
-        req.body.email || 'customer@example.com',
-        req.body.name || 'Customer',
-        {
+      const paymentData = await KorapayService.initializeCheckout({
+        amount: parseFloat(amount).toString(),
+        currency: 'NGN',
+        reference: `BUY-${uuidv4()}`,
+        redirectUrl: `${config.app.baseUrl}/payment/success`,
+        customerEmail: req.body.email || 'customer@example.com',
+        customerName: req.body.name || 'Customer',
+        metadata: {
+          transaction_id: transaction.id,
+          crypto_amount: cryptoAmount,
           crypto_type: cryptoType,
-          wallet_address: walletAddress,
-          crypto_amount: cryptoAmount
-        },
-        null
-      );
+          wallet_address: walletAddress
+        }
+      });
       
       return res.status(200).json({
         success: true,
         message: 'Payment initialized successfully',
         data: {
-          paymentUrl: paymentData.checkout_url,
+          paymentUrl: paymentData.checkoutUrl,
           reference: transaction.id,
           cryptoAmount,
           fiatAmount: amount,

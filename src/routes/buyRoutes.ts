@@ -6,16 +6,7 @@ import { AuthenticatedRequest } from '../types/express';
 const router = Router();
 
 // Create payment for buying crypto
-router.post('/payment', (req: Request, res: Response) => {
-  BuyController.createPayment(req, res)
-    .catch(err => {
-      console.error('Error in buy payment route:', err);
-      res.status(500).json({
-        status: 'error',
-        message: 'Internal server error'
-      });
-    });
-});
+router.post('/payment', BuyController.initiatePurchase);
 
 // Verify payment status
 router.get('/verify/:transaction_id', (req: Request, res: Response) => {

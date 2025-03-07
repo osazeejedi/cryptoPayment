@@ -45,7 +45,7 @@ const router = (0, express_1.Router)();
  *       401:
  *         description: Unauthorized
  */
-router.post('/buy', auth_1.authenticateUser, (req, res, next) => buyController_1.BuyController.initiatePurchase(req, res).catch(next));
+router.post('/buy', buyController_1.BuyController.initiatePurchase);
 router.post('/sell', auth_1.authenticateUser, (req, res, next) => sellController_1.SellController.sellRequest(req, res).catch(next));
 // Payment endpoints
 router.post('/payment/checkout', auth_1.authenticateUser, (req, res, next) => paymentController_1.PaymentController.initializeCheckout(req, res).catch(next));

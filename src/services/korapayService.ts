@@ -350,6 +350,9 @@ export class KorapayService {
    */
   static async initializeCheckout(data: PaymentInitData) {
     try {
+      // Log the request for debugging
+      console.log('Initializing checkout with data:', JSON.stringify(data, null, 2));
+      
       const payload = {
         amount: data.amount,
         currency: data.currency,
@@ -363,22 +366,34 @@ export class KorapayService {
         metadata: data.metadata
       };
 
+      // Log the API endpoint and headers (without sensitive info)
+      console.log('Calling Korapay API:', `${this.BASE_URL}/charges/initialize`);
+      
       const response = await axios.post(
         `${this.BASE_URL}/charges/initialize`,
         payload,
-        { headers: this.getHeaders() }
+        { 
+          headers: {
+            'Authorization': `Bearer ${this.SECRET_KEY}`,
+            'Content-Type': 'application/json'
+          } 
+        }
       );
 
-      if (!response.data.status) {
-        throw new Error(response.data.message || 'Failed to initialize checkout');
-      }
-
+      // Log successful response
+      console.log('Korapay response status:', response.status);
+      
       return {
         reference: response.data.data.reference,
         checkoutUrl: response.data.data.checkout_url
       };
     } catch (error) {
+      // Enhanced error logging
       console.error('Korapay initializeCheckout error:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Response data:', error.response?.data);
+        console.error('Response status:', error.response?.status);
+      }
       throw new Error('Failed to initialize checkout');
     }
   }

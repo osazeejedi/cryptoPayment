@@ -5,16 +5,7 @@ const buyController_1 = require("../controllers/buyController");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 // Create payment for buying crypto
-router.post('/payment', (req, res) => {
-    buyController_1.BuyController.createPayment(req, res)
-        .catch(err => {
-        console.error('Error in buy payment route:', err);
-        res.status(500).json({
-            status: 'error',
-            message: 'Internal server error'
-        });
-    });
-});
+router.post('/payment', buyController_1.BuyController.initiatePurchase);
 // Verify payment status
 router.get('/verify/:transaction_id', (req, res) => {
     // Simple implementation that doesn't rely on async/await
@@ -40,4 +31,6 @@ router.post('/', auth_1.authenticateUser, (req, res) => {
         });
     });
 });
+router.post('/initiate', buyController_1.BuyController.initiatePurchase);
+router.get('/success', buyController_1.BuyController.handlePaymentSuccess);
 exports.default = router;

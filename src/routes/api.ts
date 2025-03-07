@@ -46,8 +46,7 @@ const router = Router();
  *       401:
  *         description: Unauthorized
  */
-router.post('/buy',(req: Request, res: Response, next: NextFunction) => 
-  BuyController.initiatePurchase(req as AuthenticatedRequest, res).catch(next));
+router.post('/buy', BuyController.initiatePurchase);
 router.post('/sell', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
   SellController.sellRequest(req as AuthenticatedRequest, res).catch(next));
 

@@ -124,44 +124,31 @@ class DatabaseService {
      */
     static async createTransaction(data) {
         try {
-            // Map from TransactionData to database schema
-            const dbData = {
+            const { data: transaction, error } = await supabase_1.supabase
+                .from('transactions')
+                .insert({
                 user_id: data.user_id,
                 transaction_type: data.transaction_type || 'buy',
                 status: data.status,
                 amount: data.amount,
+                crypto_amount: data.cryptoAmount,
                 crypto_type: data.cryptoType,
-                to_address: data.walletAddress || data.to_address,
+                wallet_address: data.walletAddress,
                 payment_method: data.paymentMethod,
                 fiat_amount: data.fiat_amount,
                 fiat_currency: data.fiat_currency
-            };
-            const { data: transaction, error } = await supabase_1.supabase
-                .from('transactions')
-                .insert(dbData)
+            })
                 .select()
                 .single();
-            if (error)
-                throw error;
-            // Map from database schema to TransactionData
-            return {
-                id: transaction.id,
-                amount: transaction.amount,
-                cryptoAmount: transaction.amount,
-                cryptoType: transaction.crypto_type,
-                walletAddress: transaction.to_address,
-                status: transaction.status,
-                paymentMethod: transaction.payment_method,
-                blockchainTxHash: transaction.blockchain_tx_hash,
-                paymentReference: transaction.payment_reference,
-                notes: transaction.notes,
-                createdAt: transaction.created_at,
-                updatedAt: transaction.updated_at
-            };
+            if (error || !transaction) {
+                console.error('Error creating transaction:', error);
+                throw new Error('Failed to create transaction');
+            }
+            return transaction;
         }
         catch (error) {
-            console.error('Error creating transaction:', error);
-            return null;
+            console.error('Database error:', error);
+            throw error;
         }
     }
     /**

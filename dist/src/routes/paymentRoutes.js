@@ -49,7 +49,7 @@ const router = (0, express_1.Router)();
  *       400:
  *         description: Invalid input
  */
-router.post('/checkout', paymentController_1.PaymentController.generateCheckoutUrl);
+router.post('/checkout', paymentController_1.PaymentController.processCheckout);
 /**
  * @swagger
  * /api/payment/verify/{reference}:

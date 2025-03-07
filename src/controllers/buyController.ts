@@ -242,11 +242,10 @@ export class BuyController {
       }
       
       // Get current crypto price - use a public method
-      const cryptoPrice = await PriceService.getCurrentPrice(cryptoType);
+     // const cryptoPrice = await PriceService.convertNairaToCrypto(amount, "ETH");
       
       // Calculate crypto amount based on fiat amount
-      const cryptoAmount = (parseFloat(amount) / cryptoPrice).toFixed(8);
-      
+      const cryptoAmount = await PriceService.convertNairaToCrypto(amount, "ETH");
       // Create transaction record in database
       const transaction = await DatabaseService.createTransaction({
         user_id: 'anonymous',

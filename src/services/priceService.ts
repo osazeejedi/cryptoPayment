@@ -120,7 +120,7 @@ export class PriceService {
    * @param cryptoType Type of cryptocurrency (ETH, BTC, etc.)
    * @returns Current price in fiat currency
    */
-  static async getCurrentPrice(cryptoSymbol: string): Promise<number> {
-    // implementation here...
-  }
+  // static async getCurrentPrice(cryptoSymbol: string): Promise<number> {
+  //   // implementation here...
+  // }
 } 

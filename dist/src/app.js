@@ -9,22 +9,22 @@ const helmet_1 = __importDefault(require("helmet"));
 // import morgan from 'morgan'; // Remove this import if causing issues
 const rateLimit_1 = require("./middleware/rateLimit");
 const errorHandler_1 = require("./utils/errorHandler");
-// import apiRoutes from './routes/api'; // Remove this import if causing issues
+const api_1 = __importDefault(require("./routes/api")); // Remove this import if causing issues
 // import webRoutes from './routes/web'; // Remove this import if causing issues
-// import paymentRoutes from './routes/paymentRoutes'; // Remove this import if causing issues
+const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 // import debugRoutes from './routes/debugRoutes'; // Remove this import if causing issues
 const sellRoutes_1 = __importDefault(require("./routes/sellRoutes"));
 const transferRoutes_1 = __importDefault(require("./routes/transferRoutes"));
 // import swapRoutes from './routes/swapRoutes'; // Remove this import if causing issues
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const walletRoutes_1 = __importDefault(require("./routes/walletRoutes"));
-// import { TransactionMonitor } from './jobs/transactionMonitor'; // Remove this import if causing issues
 // import swaggerUi from 'swagger-ui-express'; // Remove this import if causing issues
 // import swaggerSpecs from './config/swagger'; // Remove this import if causing issues
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const virtualAccountRoutes_1 = __importDefault(require("./routes/virtualAccountRoutes"));
 const transactionRoutes_1 = __importDefault(require("./routes/transactionRoutes"));
 const buyRoutes_1 = __importDefault(require("./routes/buyRoutes"));
+const swapRoutes_1 = __importDefault(require("./routes/swapRoutes"));
 // Create Express application
 const app = (0, express_1.default)();
 // Trust proxy (needed for rate limiting behind proxies like ngrok)
@@ -38,13 +38,13 @@ app.use(rateLimit_1.apiRateLimiter); // Apply rate limiting
 // Add Swagger documentation
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs)); // Comment out if causing issues
 // Define routes
-// app.use('/api', apiRoutes);  // Comment out if causing issues
-// app.use('/', webRoutes);     // Comment out if causing issues
-// app.use('/api/payment', paymentRoutes); // Comment out if causing issues
+app.use('/api', api_1.default); // Comment out if causing issues
+// app.use('/', webRoutes);     // Comment out if causing issues - removed due to undefined variable
+app.use('/api/payment', paymentRoutes_1.default);
 // app.use('/debug', debugRoutes); // Comment out if causing issues
 app.use('/api/sell', sellRoutes_1.default);
 app.use('/api/transfer', transferRoutes_1.default);
-// app.use('/api/swap', swapRoutes); // Comment out if causing issues
+app.use('/api/swap', swapRoutes_1.default); // Comment out if causing issues
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/wallet', walletRoutes_1.default);
 app.use('/api/user', userRoutes_1.default);

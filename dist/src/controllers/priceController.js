@@ -69,5 +69,20 @@ class PriceController {
             });
         }
     }
+    static async getCurrentPrice(req, res) {
+        try {
+            const crypto = req.query.crypto;
+            if (!crypto) {
+                res.status(400).json({ status: 'error', message: 'Crypto parameter is required' });
+                return;
+            }
+            const price = await priceService_1.PriceService.getCurrentPrice(crypto);
+            res.status(200).json({ status: 'success', data: { crypto, price } });
+        }
+        catch (error) {
+            console.error('Error fetching price:', error);
+            res.status(500).json({ status: 'error', message: 'Failed to fetch price' });
+        }
+    }
 }
 exports.PriceController = PriceController;

@@ -151,17 +151,28 @@ export class DatabaseService {
   /**
    * Create a new transaction
    */
-  static async createTransaction(data: TransactionData): Promise<any> {
+  static async createTransaction(data: TransactionData): Promise<Transaction> {
     try {
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .insert([data])
+        .insert({
+          user_id: data.user_id,
+          transaction_type: data.transaction_type || 'buy',
+          status: data.status,
+          amount: data.amount,
+          crypto_amount: data.cryptoAmount,
+          crypto_type: data.cryptoType,
+          wallet_address: data.walletAddress,
+          payment_method: data.paymentMethod,
+          fiat_amount: data.fiat_amount,
+          fiat_currency: data.fiat_currency
+        })
         .select()
         .single();
 
-      if (error) {
+      if (error || !transaction) {
         console.error('Error creating transaction:', error);
-        throw error;
+        throw new Error('Failed to create transaction');
       }
 
       return transaction;

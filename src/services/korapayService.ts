@@ -66,148 +66,74 @@ export class KorapayService {
     };
   }
   
-  /**
-   * Process a direct card payment
-   * @param amount Amount in Naira
-   * @param email Customer email
-   * @param name Customer name
-   * @param cardNumber Card number
-   * @param cardExpiry Card expiry in MM/YY format
-   * @param cardCvv Card CVV
-   * @param cryptoAmount Amount of crypto to buy
-   * @param cryptoType Type of crypto (ETH, BTC)
-   * @param walletAddress User's wallet address
-   * @returns Payment status and reference
-   */
-  static async processCardPayment(
-    amount: string,
-    email: string,
-    name: string,
-    cardNumber: string,
-    cardExpiry: string,
-    cardCvv: string,
-    cryptoAmount: string,
-    cryptoType: string,
-    walletAddress: string
-  ): Promise<{ status: 'success' | 'pending' | 'failed'; reference: string }> {
-    try {
-      const reference = this.generateReference();
-      
-      // Parse card expiry
-      const [expiryMonth, expiryYear] = cardExpiry.split('/');
-      
-      const payload = {
-        reference,
-        amount,
-        currency: 'NGN',
-        customer: {
-          name,
-          email
-        },
-        notification_url: this.CALLBACK_URL,
-        card: {
-          number: cardNumber.replace(/\s/g, ''),
-          expiry_month: expiryMonth,
-          expiry_year: expiryYear,
-          cvv: cardCvv
-        },
-        metadata: {
-          crypto_amount: cryptoAmount,
-          crypto_type: cryptoType,
-          wallet_address: walletAddress
-        }
-      };
-      
-      console.log('Card payment payload:', JSON.stringify(payload, null, 2));
-      
-      const response = await axios.post<KorapayDirectChargeResponse>(
-        `${this.BASE_URL}/charges/card`,
-        payload,
-        {
-          headers: this.getHeaders()
-        }
-      );
-      
-      if (!response.data.status) {
-        throw new Error(response.data.message || 'Failed to process card payment');
-      }
-      
-      return {
-        status: response.data.data.status,
-        reference: response.data.data.reference
-      };
-    } catch (error) {
-      console.error('Error processing Korapay card payment:', error);
-      throw new Error('Failed to process card payment');
-    }
-  }
+ 
   
-  /**
-   * Process a bank transfer payment
-   * @param amount Amount in Naira
-   * @param email Customer email
-   * @param name Customer name
-   * @param bankCode Bank code
-   * @param accountNumber Account number
-   * @param cryptoAmount Amount of crypto to buy
-   * @param cryptoType Type of crypto (ETH, BTC)
-   * @param walletAddress User's wallet address
-   * @returns Payment status and reference
-   */
-  static async processBankTransfer(
-    amount: string,
-    email: string,
-    name: string,
-    bankCode: string,
-    accountNumber: string,
-    cryptoAmount: string,
-    cryptoType: string,
-    walletAddress: string
-  ): Promise<{ status: 'success' | 'pending' | 'failed'; reference: string }> {
-    try {
-      const reference = this.generateReference();
+  // /**
+  //  * Process a bank transfer payment
+  //  * @param amount Amount in Naira
+  //  * @param email Customer email
+  //  * @param name Customer name
+  //  * @param bankCode Bank code
+  //  * @param accountNumber Account number
+  //  * @param cryptoAmount Amount of crypto to buy
+  //  * @param cryptoType Type of crypto (ETH, BTC)
+  //  * @param walletAddress User's wallet address
+  //  * @returns Payment status and reference
+  //  */
+  // static async processBankTransfer(
+  //   amount: string,
+  //   email: string,
+  //   name: string,
+  //   bankCode: string,
+  //   accountNumber: string,
+  //   cryptoAmount: string,
+  //   cryptoType: string,
+  //   walletAddress: string
+  // ): Promise<{ status: 'success' | 'pending' | 'failed'; reference: string }> {
+  //   try {
+  //     const reference = this.generateReference();
       
-      const payload = {
-        reference,
-        amount,
-        currency: 'NGN',
-        customer: {
-          name,
-          email
-        },
-        notification_url: this.CALLBACK_URL,
-        bank: {
-          code: bankCode,
-          account_number: accountNumber
-        },
-        metadata: {
-          crypto_amount: cryptoAmount,
-          crypto_type: cryptoType,
-          wallet_address: walletAddress
-        }
-      };
+  //     const payload = {
+  //       reference,
+  //       amount,
+  //       currency: 'NGN',
+  //       customer: {
+  //         name,
+  //         email
+  //       },
+  //       notification_url: this.CALLBACK_URL,
+  //       bank: {
+  //         code: bankCode,
+  //         account_number: accountNumber
+  //       },
+  //       metadata: {
+  //         crypto_amount: cryptoAmount,
+  //         crypto_type: cryptoType,
+  //         wallet_address: walletAddress
+  //       }
+  //     };
       
-      const response = await axios.post<KorapayDirectChargeResponse>(
-        `${this.BASE_URL}/charges/bank-transfer`,
-        payload,
-        {
-          headers: this.getHeaders()
-        }
-      );
+  //     const response = await axios.post<KorapayDirectChargeResponse>(
+  //       `${this.BASE_URL}/charges/bank-transfer`,
+  //       payload,
+  //       {
+  //         headers: this.getHeaders()
+  //       }
+  //     );
       
-      if (!response.data.status) {
-        throw new Error(response.data.message || 'Failed to process bank transfer');
-      }
+  //     if (!response.data.status) {
+  //       throw new Error(response.data.message || 'Failed to process bank transfer');
+  //     }
       
-      return {
-        status: response.data.data.status,
-        reference: response.data.data.reference
-      };
-    } catch (error) {
-      console.error('Error processing Korapay bank transfer:', error);
-      throw new Error('Failed to process bank transfer');
-    }
-  }
+  //     return {
+  //       status: response.data.data.status,
+  //       reference: response.data.data.reference
+  //     };
+  //   } catch (error) {
+  //     console.error('Error processing Korapay bank transfer:', error);
+  //     throw new Error('Failed to process bank transfer');
+  //   }
+  // }
   
   /**
    * Get available banks for payment
@@ -686,18 +612,26 @@ export class KorapayService {
         console.error('Webhook verification failed: Missing signature');
         return false;
       }
-
+  
+      // Ensure the secret key is properly formatted
+      const cleanSecretKey = this.SECRET_KEY.replace(/^["']|["']$/g, '').trim();
+      
       const payload = JSON.stringify(req.body);
+      console.log('Webhook payload:', payload);
+      
       const hash = crypto
-        .createHmac('sha256', this.SECRET_KEY)
+        .createHmac('sha256', cleanSecretKey)
         .update(payload)
         .digest('hex');
-
+      
+      console.log('Calculated hash:', hash);
+      console.log('Received signature:', signature);
+  
       const isValid = hash === signature;
       if (!isValid) {
         console.error('Webhook verification failed: Invalid signature');
       }
-
+  
       return isValid;
     } catch (error) {
       console.error('Webhook verification error:', error);

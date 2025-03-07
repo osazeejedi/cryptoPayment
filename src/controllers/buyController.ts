@@ -272,78 +272,27 @@ export class BuyController {
     }
   }
 
-  static async handlePaymentSuccess(req: Request, res: Response): Promise<void> {
-    try {
-      const reference = req.query.reference as string;
-      if (!reference) {
-        res.status(400).send('Missing payment reference.');
-        return;
-      }
-
-      const paymentStatus = await KorapayService.verifyPayment(reference);
-      if (paymentStatus.status !== 'success') {
-        res.status(400).send('Payment not successful.');
-        return;
-      }
-
-      const { crypto_type, wallet_address, crypto_amount } = paymentStatus.metadata || {};
-      if (!crypto_type || !wallet_address || !crypto_amount) {
-        res.status(400).send('Missing required metadata fields.');
-        return;
-      }
-
-      const txHash = await BlockchainService.transferCrypto(wallet_address, crypto_amount, crypto_type);
-
-      res.status(200).send(`Payment successful! Crypto transferred. Transaction hash: ${txHash}`);
-    } catch (error) {
-      console.error('Error handling payment success:', error);
-      res.status(500).send('Failed to process payment.');
-    }
-  }
+  
   
   /**
    * Get a buy order by ID
    */
-  static async getBuyOrderById(req: Request, res: Response): Promise<void> {
-    try {
-      const { orderId } = req.params;
-      
-      // Get the order from the database
-      const { data: order, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', orderId)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching order:', error);
-        res.status(404).json({
-          status: 'error',
-          message: 'Order not found'
-        });
-        return;
-      }
-      
-      // Return the order
-      res.status(200).json({
-        status: 'success',
-        data: order
-      });
-    } catch (error) {
-      handleError(error, res, 'Failed to retrieve buy order');
-    }
-  }
+
   
   /**
    * Process payment webhook
    */
   static async processPaymentWebhook(req: Request, res: Response): Promise<void> {
     try {
+      console.log('Webhook received:', JSON.stringify(req.body, null, 2));
+      console.log('Headers:', JSON.stringify(req.headers, null, 2));
+      
       const { event, data } = req.body;
       
       // Verify webhook signature
       const signature = req.headers['x-korapay-signature'];
       if (!signature || !KorapayService.verifyWebhook(req)) {
+        console.error('Invalid webhook signature');
         res.status(401).json({
           status: 'error',
           message: 'Invalid webhook signature'
@@ -353,6 +302,7 @@ export class BuyController {
       
       // Check if this is a successful payment
       if (event !== 'charge.success' || data.status !== 'success') {
+        console.log(`Webhook event ${event} with status ${data.status} - not processing`);
         res.status(200).json({
           status: 'success',
           message: 'Webhook received but not processed'
@@ -360,19 +310,21 @@ export class BuyController {
         return;
       }
       
-      // Extract metadata
-      const { crypto_type, wallet_address } = data.metadata;
-      const amount = data.amount;
-      
-      // Update order status
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ status: 'paid' })
-        .eq('reference', data.reference);
-      
-      if (updateError) {
-        console.error('Error updating order status:', updateError);
+      // Extract and validate metadata
+      const { crypto_type, wallet_address, crypto_amount } = data.metadata || {};
+      if (!crypto_type || !wallet_address) {
+        console.error('Missing required metadata:', data.metadata);
+        res.status(400).json({
+          status: 'error',
+          message: 'Missing required metadata'
+        });
+        return;
       }
+      
+      // Use crypto_amount from metadata if available, otherwise use data.amount
+      const amount = crypto_amount || data.amount;
+      
+      console.log(`Processing crypto transfer: ${amount} ${crypto_type} to ${wallet_address}`);
       
       // Initiate blockchain transfer
       const txHash = await BlockchainService.transferCrypto(
@@ -381,16 +333,7 @@ export class BuyController {
         crypto_type
       );
       
-      // Update order with transaction hash
-      if (txHash) {
-        await supabase
-          .from('orders')
-          .update({ 
-            status: 'completed',
-            transaction_hash: txHash
-          })
-          .eq('reference', data.reference);
-      }
+      console.log(`Crypto transfer successful. Transaction hash: ${txHash}`);
       
       // Return success
       res.status(200).json({
@@ -399,7 +342,11 @@ export class BuyController {
         data: { txHash }
       });
     } catch (error) {
-      handleError(error, res, 'Failed to process payment webhook');
+      console.error('Webhook processing error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to process payment webhook'
+      });
     }
   }
 

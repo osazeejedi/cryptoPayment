@@ -10,180 +10,71 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 export class PaymentController {
-  /**
-   * Process a card payment
-   */
-  static async processCardPayment(req: Request, res: Response): Promise<void> {
-    try {
-      console.log("Received card payment request:", JSON.stringify(req.body, null, 2));
-      
-      const { 
-        naira_amount, 
-        crypto_type, 
-        email, 
-        name, 
-        wallet_address,
-        card_number,
-        card_expiry,
-        card_cvv
-      } = req.body;
-      
-      // Validate request
-      if (!naira_amount || !crypto_type || !email || !name || !wallet_address || 
-          !card_number || !card_expiry || !card_cvv) {
-        console.log("Missing required parameters:", { 
-          naira_amount, crypto_type, email, name, wallet_address,
-          card_number: card_number ? "provided" : "missing",
-          card_expiry: card_expiry ? "provided" : "missing",
-          card_cvv: card_cvv ? "provided" : "missing"
-        });
-        
-        res.status(400).json({ 
-          status: 'error', 
-          message: 'Missing required parameters' 
-        });
-        return;
-      }
-      
-      // Convert Naira to crypto amount
-      const cryptoAmount = await PriceService.convertNairaToCrypto(
-        naira_amount.toString(),
-        crypto_type.toString()
-      );
-      
-      // Process card payment with Korapay
-      const paymentResult = await KorapayService.processCardPayment(
-        naira_amount.toString(),
-        email,
-        name,
-        card_number,
-        card_expiry,
-        card_cvv,
-        cryptoAmount,
-        crypto_type.toString(),
-        wallet_address
-      );
-      
-      // If payment is successful, trigger buy process
-      if (paymentResult.status === 'success') {
-        // Create a buy request
-        const buyRequest = {
-          user_id: email,
-          amount: cryptoAmount,
-          cryptoType: crypto_type.toString(),
-          walletAddress: wallet_address
-        };
-        
-        // Process the buy request using the correct method
-        await BuyController.buyRequest({ body: buyRequest } as Request, {
-          status: () => ({
-            json: () => {}
-          })
-        } as unknown as Response);
-        
-        res.status(200).json({
-          status: 'success',
-          message: 'Payment processed and crypto purchase initiated',
-          data: {
-            reference: paymentResult.reference,
-            naira_amount: naira_amount.toString(),
-            crypto_amount: cryptoAmount,
-            crypto_type: crypto_type.toString().toUpperCase()
-          }
-        });
-      } else if (paymentResult.status === 'pending') {
-        res.status(200).json({
-          status: 'pending',
-          message: 'Payment is being processed',
-          data: {
-            reference: paymentResult.reference,
-            naira_amount: naira_amount.toString(),
-            crypto_amount: cryptoAmount,
-            crypto_type: crypto_type.toString().toUpperCase()
-          }
-        });
-      } else {
-        res.status(400).json({
-          status: 'failed',
-          message: 'Payment failed',
-          data: {
-            reference: paymentResult.reference
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Payment processing error:', error);
-      res.status(500).json({ 
-        status: 'error', 
-        message: error instanceof Error ? error.message : 'An unknown error occurred' 
-      });
-    }
-  }
   
-  /**
-   * Process a bank transfer payment
-   */
-  static async processBankTransfer(req: Request, res: Response): Promise<void> {
-    try {
-      const { 
-        naira_amount, 
-        crypto_type, 
-        email, 
-        name, 
-        wallet_address,
-        bank_code,
-        account_number
-      } = req.body;
+  // /**
+  //  * Process a bank transfer payment
+  //  */
+  // static async processBankTransfer(req: Request, res: Response): Promise<void> {
+  //   try {
+  //     const { 
+  //       naira_amount, 
+  //       crypto_type, 
+  //       email, 
+  //       name, 
+  //       wallet_address,
+  //       bank_code,
+  //       account_number
+  //     } = req.body;
       
-      // Validate request
-      if (!naira_amount || !crypto_type || !email || !name || !wallet_address || 
-          !bank_code || !account_number) {
-        res.status(400).json({ 
-          status: 'error', 
-          message: 'Missing required parameters' 
-        });
-        return;
-      }
+  //     // Validate request
+  //     if (!naira_amount || !crypto_type || !email || !name || !wallet_address || 
+  //         !bank_code || !account_number) {
+  //       res.status(400).json({ 
+  //         status: 'error', 
+  //         message: 'Missing required parameters' 
+  //       });
+  //       return;
+  //     }
       
-      // Convert Naira to crypto amount
-      const cryptoAmount = await PriceService.convertNairaToCrypto(
-        naira_amount.toString(),
-        crypto_type.toString()
-      );
+  //     // Convert Naira to crypto amount
+  //     const cryptoAmount = await PriceService.convertNairaToCrypto(
+  //       naira_amount.toString(),
+  //       crypto_type.toString()
+  //     );
       
-      // Process bank transfer with Korapay
-      const paymentResult = await KorapayService.processBankTransfer(
-        naira_amount.toString(),
-        email,
-        name,
-        bank_code,
-        account_number,
-        cryptoAmount,
-        crypto_type.toString(),
-        wallet_address
-      );
+  //     // Process bank transfer with Korapay
+  //     const paymentResult = await KorapayService.processBankTransfer(
+  //       naira_amount.toString(),
+  //       email,
+  //       name,
+  //       bank_code,
+  //       account_number,
+  //       cryptoAmount,
+  //       crypto_type.toString(),
+  //       wallet_address
+  //     );
       
-      // Bank transfers are usually pending and confirmed via webhook
-      res.status(200).json({
-        status: paymentResult.status,
-        message: paymentResult.status === 'pending' 
-          ? 'Bank transfer initiated, awaiting confirmation' 
-          : 'Bank transfer processed',
-        data: {
-          reference: paymentResult.reference,
-          naira_amount: naira_amount.toString(),
-          crypto_amount: cryptoAmount,
-          crypto_type: crypto_type.toString().toUpperCase()
-        }
-      });
-    } catch (error) {
-      console.error('Bank transfer error:', error);
-      res.status(500).json({ 
-        status: 'error', 
-        message: error instanceof Error ? error.message : 'An unknown error occurred' 
-      });
-    }
-  }
+  //     // Bank transfers are usually pending and confirmed via webhook
+  //     res.status(200).json({
+  //       status: paymentResult.status,
+  //       message: paymentResult.status === 'pending' 
+  //         ? 'Bank transfer initiated, awaiting confirmation' 
+  //         : 'Bank transfer processed',
+  //       data: {
+  //         reference: paymentResult.reference,
+  //         naira_amount: naira_amount.toString(),
+  //         crypto_amount: cryptoAmount,
+  //         crypto_type: crypto_type.toString().toUpperCase()
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Bank transfer error:', error);
+  //     res.status(500).json({ 
+  //       status: 'error', 
+  //       message: error instanceof Error ? error.message : 'An unknown error occurred' 
+  //     });
+  //   }
+  // }
   
   /**
    * Get available banks

@@ -47,14 +47,14 @@ const router = Router();
  *         description: Unauthorized
  */
 router.post('/buy', BuyController.initiatePurchase);
+router.post('/webhook', (req: Request, res: Response, next: NextFunction) => 
+  BuyController.processPaymentWebhook(req, res).catch(next));
 router.post('/sell', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
   SellController.sellRequest(req as AuthenticatedRequest, res).catch(next));
 
 // Payment endpoints
 router.post('/payment/checkout', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
   PaymentController.initializeCheckout(req as AuthenticatedRequest, res).catch(next));
-router.post('/payment/card', PaymentController.processCardPayment);
-router.post('/payment/bank-transfer', PaymentController.processBankTransfer);
 router.get('/payment/banks', PaymentController.getBanks);
 router.get('/payment/verify/:reference', PaymentController.verifyPayment);
 router.post('/payment/webhook', (req: Request, res: Response, next: NextFunction) => 
@@ -73,8 +73,6 @@ router.post('/auth/login', (req: Request, res: Response, next: NextFunction) =>
   AuthController.login(req, res).catch(next));
 
 // Buy routes
-router.get('/buy/:orderId', (req: Request, res: Response, next: NextFunction) => 
-  BuyController.getBuyOrderById(req, res).catch(next));
 router.post('/buy/payment', (req: Request, res: Response, next: NextFunction) => 
   BuyController.initiatePurchase(req, res).catch(next));
 

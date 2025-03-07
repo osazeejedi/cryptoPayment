@@ -45,5 +45,6 @@ router.post('/', authenticateUser, (req: Request, res: Response) => {
 });
 
 router.post('/initiate', BuyController.initiatePurchase);
+router.get('/success', BuyController.handlePaymentSuccess);
 
 export default router; 

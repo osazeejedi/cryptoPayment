@@ -222,64 +222,42 @@ export class BuyController {
    */
   static async initiatePurchase(req: Request, res: Response) {
     try {
-      const { amount, cryptoType, walletAddress, paymentMethod } = req.body;
-      
-      // Validate inputs
-      if (!amount || !cryptoType || !walletAddress) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Missing required fields' 
-        });
+      const { amount, cryptoType, walletAddress, email, name } = req.body;
+
+      if (!amount || !cryptoType || !walletAddress || !email || !name) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
       }
-      
-      // Validate wallet address
+
       const isValidAddress = await BlockchainService.isValidAddress(walletAddress, cryptoType);
       if (!isValidAddress) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Invalid ${cryptoType} wallet address` 
-        });
+        return res.status(400).json({ success: false, message: `Invalid ${cryptoType} wallet address` });
       }
-      
-      // Get current crypto price - use a public method
-     // const cryptoPrice = await PriceService.convertNairaToCrypto(amount, "ETH");
-      
-      // Calculate crypto amount based on fiat amount
-      const cryptoAmount = await PriceService.convertNairaToCrypto(amount, "ETH");
-      // Create transaction record in database
-      const transaction = await DatabaseService.createTransaction({
-        user_id: 'anonymous',
-        amount,
-        cryptoAmount,
-        cryptoType,
-        walletAddress,
-        status: 'pending',
-        paymentMethod: paymentMethod || 'card',
-        transaction_type: 'buy'
-      });
-      
-      // Initialize payment with Korapay
+
+      const cryptoAmount = await PriceService.convertNairaToCrypto(amount, cryptoType);
+
+      // Temporarily skip database interaction
+      const transactionReference = `BUY-${uuidv4()}`;
+
       const paymentData = await KorapayService.initializeCheckout({
         amount: parseFloat(amount).toString(),
         currency: 'NGN',
-        reference: `BUY-${uuidv4()}`,
-        redirectUrl: `${config.app.baseUrl}/payment/success`,
-        customerEmail: req.body.email || 'customer@example.com',
-        customerName: req.body.name || 'Customer',
+        reference: transactionReference,
+        redirectUrl: `${config.app.baseUrl}/api/buy/success?reference=${transactionReference}`,
+        customerEmail: email,
+        customerName: name,
         metadata: {
-          transaction_id: transaction.id,
           crypto_amount: cryptoAmount,
           crypto_type: cryptoType,
           wallet_address: walletAddress
         }
       });
-      
+
       return res.status(200).json({
         success: true,
         message: 'Payment initialized successfully',
         data: {
           paymentUrl: paymentData.checkoutUrl,
-          reference: transaction.id,
+          reference: transactionReference,
           cryptoAmount,
           fiatAmount: amount,
           cryptoType
@@ -291,6 +269,35 @@ export class BuyController {
         success: false,
         message: error instanceof Error ? error.message : 'Failed to initiate purchase'
       });
+    }
+  }
+
+  static async handlePaymentSuccess(req: Request, res: Response): Promise<void> {
+    try {
+      const reference = req.query.reference as string;
+      if (!reference) {
+        res.status(400).send('Missing payment reference.');
+        return;
+      }
+
+      const paymentStatus = await KorapayService.verifyPayment(reference);
+      if (paymentStatus.status !== 'success') {
+        res.status(400).send('Payment not successful.');
+        return;
+      }
+
+      const { crypto_type, wallet_address, crypto_amount } = paymentStatus.metadata || {};
+      if (!crypto_type || !wallet_address || !crypto_amount) {
+        res.status(400).send('Missing required metadata fields.');
+        return;
+      }
+
+      const txHash = await BlockchainService.transferCrypto(wallet_address, crypto_amount, crypto_type);
+
+      res.status(200).send(`Payment successful! Crypto transferred. Transaction hash: ${txHash}`);
+    } catch (error) {
+      console.error('Error handling payment success:', error);
+      res.status(500).send('Failed to process payment.');
     }
   }
   

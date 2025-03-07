@@ -613,26 +613,60 @@ export class KorapayService {
         return false;
       }
   
-      // Ensure the secret key is properly formatted
-      const cleanSecretKey = this.SECRET_KEY.replace(/^["']|["']$/g, '').trim();
+      // Try different formats of the secret key
+      const secretKey = this.SECRET_KEY;
+      const cleanSecretKey = secretKey.replace(/^["']|["']$/g, '').trim();
       
       const payload = JSON.stringify(req.body);
-      console.log('Webhook payload:', payload);
+      console.log('Webhook payload length:', payload.length);
+      console.log('Signature header:', signature);
       
-      const hash = crypto
+      // Try with original secret key
+      let hash = crypto
+        .createHmac('sha256', secretKey)
+        .update(payload)
+        .digest('hex');
+      
+      if (hash === signature) {
+        console.log('Signature verified with original key');
+        return true;
+      }
+      
+      // Try with cleaned secret key
+      hash = crypto
         .createHmac('sha256', cleanSecretKey)
         .update(payload)
         .digest('hex');
       
-      console.log('Calculated hash:', hash);
-      console.log('Received signature:', signature);
-  
-      const isValid = hash === signature;
-      if (!isValid) {
-        console.error('Webhook verification failed: Invalid signature');
+      if (hash === signature) {
+        console.log('Signature verified with cleaned key');
+        return true;
       }
-  
-      return isValid;
+      
+      // Try with SHA512 instead of SHA256
+      hash = crypto
+        .createHmac('sha512', secretKey)
+        .update(payload)
+        .digest('hex');
+      
+      if (hash === signature) {
+        console.log('Signature verified with SHA512');
+        return true;
+      }
+      
+      // Try with cleaned key and SHA512
+      hash = crypto
+        .createHmac('sha512', cleanSecretKey)
+        .update(payload)
+        .digest('hex');
+      
+      if (hash === signature) {
+        console.log('Signature verified with cleaned key and SHA512');
+        return true;
+      }
+      
+      console.error('All signature verification attempts failed');
+      return false;
     } catch (error) {
       console.error('Webhook verification error:', error);
       return false;

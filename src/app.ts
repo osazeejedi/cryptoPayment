@@ -32,7 +32,12 @@ app.set('trust proxy', 1);
 // Apply middleware
 app.use(helmet()); // Security headers
 app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON request bodies
+app.use(express.json({ 
+  verify: (req: any, res, buf) => {
+    // Store the raw body for signature verification
+    req.rawBody = buf;
+  }
+})); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(apiRateLimiter); // Apply rate limiting
 

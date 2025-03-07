@@ -57,6 +57,11 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/virtual-account', virtualAccountRoutes);
 app.use('/api/transactions', transactionRoutes);
+
+// Add logging to verify mounting
+console.log('Mounting routes...');
+
+// Mount buy routes
 app.use('/api/buy', buyRoutes);
 
 // Health check endpoint
@@ -66,6 +71,8 @@ app.get('/health', (req, res) => {
 
 // Error handling middleware
 app.use(errorHandler);
+
+console.log('Routes mounted');
 
 // Export the app
 export default app; 

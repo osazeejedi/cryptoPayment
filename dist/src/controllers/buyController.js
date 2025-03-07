@@ -7,8 +7,6 @@ const env_1 = require("../../config/env");
 const transactionVerificationService_1 = require("../services/transactionVerificationService");
 const korapayService_1 = require("../services/korapayService");
 const priceService_1 = require("../services/priceService");
-const errorHandler_1 = require("../utils/errorHandler");
-const supabase_1 = require("../../config/supabase");
 const uuid_1 = require("uuid");
 class BuyController {
     static async buyRequest(req, res) {
@@ -193,11 +191,12 @@ class BuyController {
             const cryptoAmount = await priceService_1.PriceService.convertNairaToCrypto(amount, cryptoType);
             // Temporarily skip database interaction
             const transactionReference = `BUY-${(0, uuid_1.v4)()}`;
+            console.log(`${env_1.config.app.baseUrl}/api/buy/success?reference=${transactionReference}&crypto_type=${cryptoType}&wallet_address=${walletAddress}&crypto_amount=${cryptoAmount}`);
             const paymentData = await korapayService_1.KorapayService.initializeCheckout({
                 amount: parseFloat(amount).toString(),
                 currency: 'NGN',
                 reference: transactionReference,
-                redirectUrl: `${env_1.config.app.baseUrl}/api/buy/success?reference=${transactionReference}`,
+                redirectUrl: `${env_1.config.app.baseUrl}/api/buy/success?reference=${transactionReference}&crypto_type=${cryptoType}&wallet_address=${walletAddress}&crypto_amount=${cryptoAmount}`,
                 customerEmail: email,
                 customerName: name,
                 metadata: {
@@ -226,107 +225,53 @@ class BuyController {
             });
         }
     }
-    static async handlePaymentSuccess(req, res) {
-        try {
-            const reference = req.query.reference;
-            if (!reference) {
-                res.status(400).send('Missing payment reference.');
-                return;
-            }
-            const paymentStatus = await korapayService_1.KorapayService.verifyPayment(reference);
-            if (paymentStatus.status !== 'success') {
-                res.status(400).send('Payment not successful.');
-                return;
-            }
-            const { crypto_type, wallet_address, crypto_amount } = paymentStatus.metadata || {};
-            if (!crypto_type || !wallet_address || !crypto_amount) {
-                res.status(400).send('Missing required metadata fields.');
-                return;
-            }
-            const txHash = await blockchainService_1.BlockchainService.transferCrypto(wallet_address, crypto_amount, crypto_type);
-            res.status(200).send(`Payment successful! Crypto transferred. Transaction hash: ${txHash}`);
-        }
-        catch (error) {
-            console.error('Error handling payment success:', error);
-            res.status(500).send('Failed to process payment.');
-        }
-    }
     /**
      * Get a buy order by ID
      */
-    static async getBuyOrderById(req, res) {
-        try {
-            const { orderId } = req.params;
-            // Get the order from the database
-            const { data: order, error } = await supabase_1.supabase
-                .from('orders')
-                .select('*')
-                .eq('id', orderId)
-                .single();
-            if (error) {
-                console.error('Error fetching order:', error);
-                res.status(404).json({
-                    status: 'error',
-                    message: 'Order not found'
-                });
-                return;
-            }
-            // Return the order
-            res.status(200).json({
-                status: 'success',
-                data: order
-            });
-        }
-        catch (error) {
-            (0, errorHandler_1.handleError)(error, res, 'Failed to retrieve buy order');
-        }
-    }
     /**
      * Process payment webhook
      */
     static async processPaymentWebhook(req, res) {
         try {
+            //console.log('Webhook received:', JSON.stringify(req.body, null, 2));
+            //console.log('Headers:', JSON.stringify(req.headers, null, 2));
+            //console.log(req)
             const { event, data } = req.body;
-            // Verify webhook signature
-            const signature = req.headers['x-korapay-signature'];
-            if (!signature || !korapayService_1.KorapayService.verifyWebhook(req)) {
-                res.status(401).json({
-                    status: 'error',
-                    message: 'Invalid webhook signature'
-                });
-                return;
-            }
+            // Temporarily bypass signature verification
+            // const signature = req.headers['x-korapay-signature'];
+            // if (!signature || !KorapayService.verifyWebhook(req)) {
+            //   console.error('Invalid webhook signature');
+            //   res.status(401).json({
+            //     status: 'error',
+            //     message: 'Invalid webhook signature'
+            //   });
+            //   return;
+            // }
             // Check if this is a successful payment
             if (event !== 'charge.success' || data.status !== 'success') {
+                console.log(`Webhook event ${event} with status ${data.status} - not processing`);
                 res.status(200).json({
                     status: 'success',
                     message: 'Webhook received but not processed'
                 });
                 return;
             }
-            // Extract metadata
-            const { crypto_type, wallet_address } = data.metadata;
-            const amount = data.amount;
-            // Update order status
-            const { error: updateError } = await supabase_1.supabase
-                .from('orders')
-                .update({ status: 'paid' })
-                .eq('reference', data.reference);
-            if (updateError) {
-                console.error('Error updating order status:', updateError);
+            // Extract and validate metadata
+            const { crypto_type, wallet_address, crypto_amount } = data.metadata || {};
+            if (!crypto_type || !wallet_address) {
+                console.error('Missing required metadata:', data.metadata);
+                res.status(200).json({
+                    status: 'success',
+                    message: 'Webhook received but not processed'
+                });
+                return;
             }
+            // Use crypto_amount from metadata if available, otherwise use data.amount
+            const amount = crypto_amount || data.amount;
+            console.log(`Processing crypto transfer: ${amount} ${crypto_type} to ${wallet_address}`);
             // Initiate blockchain transfer
             const txHash = await blockchainService_1.BlockchainService.transferCrypto(wallet_address, amount, crypto_type);
-            // Update order with transaction hash
-            if (txHash) {
-                await supabase_1.supabase
-                    .from('orders')
-                    .update({
-                    status: 'completed',
-                    transaction_hash: txHash
-                })
-                    .eq('reference', data.reference);
-            }
+            console.log(`Crypto transfer successful. Transaction hash: ${txHash}`);
             // Return success
             res.status(200).json({
                 status: 'success',
@@ -335,7 +280,11 @@ class BuyController {
             });
         }
         catch (error) {
-            (0, errorHandler_1.handleError)(error, res, 'Failed to process payment webhook');
+            console.error('Webhook processing error:', error);
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to process payment webhook'
+            });
         }
     }
     /**
@@ -387,6 +336,305 @@ class BuyController {
             res.status(500).json({
                 status: 'error',
                 message: 'Failed to create payment'
+            });
+        }
+    }
+    /**
+     * Handle payment success and show transfer button
+     */
+    static async handlePaymentSuccess(req, res) {
+        try {
+            const reference = req.query.reference;
+            if (!reference) {
+                res.status(400).send('Missing payment reference');
+                return;
+            }
+            // Get metadata from query parameters
+            const crypto_type = req.query.crypto_type;
+            const wallet_address = req.query.wallet_address;
+            const crypto_amount = req.query.crypto_amount;
+            const amount = crypto_amount;
+            console.log(`Processing crypto transfer: ${amount} ${crypto_type} to ${wallet_address}`);
+            // Initiate blockchain transfer
+            const txHash = await blockchainService_1.BlockchainService.transferCrypto(wallet_address, amount, crypto_type);
+            // Render success page with transfer button
+            res.status(200).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Payment Successful</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 40px 20px;
+                background-color: #f8f9fa;
+                color: #333;
+              }
+              .container {
+                max-width: 500px;
+                margin: 0 auto;
+                background-color: white;
+                border-radius: 10px;
+                padding: 30px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+              }
+              .icon {
+                font-size: 60px;
+                margin-bottom: 20px;
+              }
+              .success-icon {
+                color: #28a745;
+              }
+              .processing-icon {
+                color: #ffc107;
+              }
+              h1 {
+                margin-bottom: 15px;
+              }
+              p {
+                color: #666;
+                margin-bottom: 25px;
+              }
+              .info-box {
+                background-color: #f1f1f1;
+                padding: 10px;
+                border-radius: 5px;
+                font-family: monospace;
+                margin-bottom: 25px;
+                word-break: break-all;
+                text-align: left;
+              }
+              .btn {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                padding: 12px 25px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 16px;
+                text-decoration: none;
+                display: inline-block;
+                margin-top: 10px;
+              }
+              .btn-success {
+                background-color: #28a745;
+              }
+              .btn:hover {
+                opacity: 0.9;
+              }
+              .loader {
+                display: none;
+                border: 5px solid #f3f3f3;
+                border-radius: 50%;
+                border-top: 5px solid #007bff;
+                width: 30px;
+                height: 30px;
+                margin: 20px auto;
+                animation: spin 1s linear infinite;
+              }
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              #result {
+                margin-top: 20px;
+                padding: 15px;
+                border-radius: 5px;
+                display: none;
+              }
+              .success-result {
+                background-color: #d4edda;
+                color: #155724;
+              }
+              .error-result {
+                background-color: #f8d7da;
+                color: #721c24;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="icon success-icon">✓</div>
+              <h1>Payment Successful!</h1>
+              <p>Your payment has been received. Click the button below to transfer your cryptocurrency.</p>
+              
+              <div class="info-box">
+                <strong>Reference:</strong> ${reference}<br>
+                <strong>Crypto Amount:</strong> ${crypto_amount || 'Not specified'}<br>
+                <strong>Crypto Type:</strong> ${crypto_type || 'Not specified'}<br>
+                <strong>Wallet Address:</strong> ${wallet_address || 'Not specified'}
+              </div>
+              
+              <button id="transferBtn" class="btn btn-success" onclick="transferCrypto()">
+                Transfer Crypto Now
+              </button>
+              
+              <div class="loader" id="loader"></div>
+              <div id="result"></div>
+              
+              <a href="/" class="btn" style="margin-top: 20px;">Return to Home</a>
+              
+              <script>
+                function transferCrypto() {
+                  const transferBtn = document.getElementById('transferBtn');
+                  const loader = document.getElementById('loader');
+                  const result = document.getElementById('result');
+                  
+                  // Disable button and show loader
+                  transferBtn.disabled = true;
+                  loader.style.display = 'block';
+                  result.style.display = 'none';
+                  
+                  // Prepare data
+                  const data = {
+                    reference: '${reference}',
+                    crypto_type: '${crypto_type || ''}',
+                    wallet_address: '${wallet_address || ''}',
+                    crypto_amount: '${crypto_amount || ''}'
+                  };
+                  
+                  // Make API call to transfer endpoint
+                  fetch('/api/buy/transfer', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                    loader.style.display = 'none';
+                    result.style.display = 'block';
+                    
+                    if (data.success) {
+                      result.className = 'success-result';
+                      result.innerHTML = 'Crypto transfer successful! Transaction hash: <br><code>' + data.txHash + '</code>';
+                      transferBtn.style.display = 'none';
+                      
+                      // Notify mobile app if in WebView
+                      if (window.ReactNativeWebView) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'CRYPTO_TRANSFERRED',
+                          reference: '${reference}',
+                          txHash: data.txHash
+                        }));
+                      }
+                    } else {
+                      result.className = 'error-result';
+                      result.innerHTML = 'Error: ' + (data.message || 'Failed to transfer crypto');
+                      transferBtn.disabled = false;
+                    }
+                  })
+                  .catch(error => {
+                    loader.style.display = 'none';
+                    result.style.display = 'block';
+                    result.className = 'error-result';
+                    result.innerHTML = 'Error: ' + error.message;
+                    transferBtn.disabled = false;
+                  });
+                }
+              </script>
+            </div>
+          </body>
+        </html>
+      `);
+        }
+        catch (error) {
+            console.error('Error handling payment success:', error);
+            res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Error</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 40px 20px;
+                background-color: #f8f9fa;
+              }
+              .error-container {
+                max-width: 500px;
+                margin: 0 auto;
+                background-color: white;
+                border-radius: 10px;
+                padding: 30px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+              }
+              .error-icon {
+                color: #dc3545;
+                font-size: 60px;
+                margin-bottom: 20px;
+              }
+              h1 {
+                color: #333;
+                margin-bottom: 15px;
+              }
+              p {
+                color: #666;
+                margin-bottom: 25px;
+              }
+              .btn {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                padding: 12px 25px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 16px;
+                text-decoration: none;
+                display: inline-block;
+              }
+              .btn:hover {
+                background-color: #0069d9;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="error-container">
+              <div class="error-icon">✗</div>
+              <h1>Something went wrong</h1>
+              <p>We encountered an error while processing your payment.</p>
+              <a href="/" class="btn">Return to Home</a>
+            </div>
+          </body>
+        </html>
+      `);
+        }
+    }
+    /**
+     * Transfer crypto to user's wallet
+     */
+    static async transferCrypto(req, res) {
+        try {
+            const { reference, crypto_type, wallet_address, crypto_amount } = req.body;
+            // Validate required fields
+            if (!crypto_type || !wallet_address || !crypto_amount) {
+                res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields'
+                });
+                return;
+            }
+            // Transfer crypto
+            const txHash = await blockchainService_1.BlockchainService.transferCrypto(wallet_address, crypto_amount, crypto_type);
+            // Log the successful transfer
+            console.log(`Crypto transfer successful for reference ${reference}. Hash: ${txHash}`);
+            // Return success response
+            res.status(200).json({
+                success: true,
+                message: 'Crypto transferred successfully',
+                txHash: txHash
+            });
+        }
+        catch (error) {
+            console.error('Error transferring crypto:', error);
+            res.status(500).json({
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to transfer crypto'
             });
         }
     }

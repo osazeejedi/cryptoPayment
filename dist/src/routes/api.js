@@ -5,7 +5,7 @@ const buyController_1 = require("../controllers/buyController");
 const sellController_1 = require("../controllers/sellController");
 const priceController_1 = require("../controllers/priceController");
 const balanceController_1 = require("../controllers/balanceController");
-const paymentController_1 = require("../controllers/paymentController");
+//import { PaymentController } from '../controllers/paymentController';
 const authController_1 = require("../controllers/authController");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
@@ -48,13 +48,13 @@ const router = (0, express_1.Router)();
 router.post('/buy', buyController_1.BuyController.initiatePurchase);
 router.post('/sell', auth_1.authenticateUser, (req, res, next) => sellController_1.SellController.sellRequest(req, res).catch(next));
 // Payment endpoints
-router.post('/payment/checkout', auth_1.authenticateUser, (req, res, next) => paymentController_1.PaymentController.initializeCheckout(req, res).catch(next));
-router.post('/payment/card', paymentController_1.PaymentController.processCardPayment);
-router.post('/payment/bank-transfer', paymentController_1.PaymentController.processBankTransfer);
-router.get('/payment/banks', paymentController_1.PaymentController.getBanks);
-router.get('/payment/verify/:reference', paymentController_1.PaymentController.verifyPayment);
-router.post('/payment/webhook', (req, res, next) => paymentController_1.PaymentController.handleWebhook(req, res).catch(next));
-router.get('/payment/success', paymentController_1.PaymentController.handlePaymentSuccess);
+// router.post('/payment/checkout', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
+//   PaymentController.initializeCheckout(req as AuthenticatedRequest, res).catch(next));
+// router.get('/payment/banks', PaymentController.getBanks);
+// router.get('/payment/verify/:reference', PaymentController.verifyPayment);
+// router.post('/payment/webhook', (req: Request, res: Response, next: NextFunction) => 
+//   PaymentController.handleWebhook(req, res).catch(next));
+// router.get('/payment/success', PaymentController.handlePaymentSuccess);
 // Information endpoints
 router.get('/price', priceController_1.PriceController.getPrice);
 router.get('/convert', priceController_1.PriceController.convertNairaToCrypto);
@@ -63,8 +63,14 @@ router.get('/balance', balanceController_1.BalanceController.getBalance);
 router.post('/auth/register', (req, res, next) => authController_1.AuthController.register(req, res).catch(next));
 router.post('/auth/login', (req, res, next) => authController_1.AuthController.login(req, res).catch(next));
 // Buy routes
-router.get('/buy/:orderId', (req, res, next) => buyController_1.BuyController.getBuyOrderById(req, res).catch(next));
-router.post('/buy/payment', (req, res, next) => buyController_1.BuyController.initiatePurchase(req, res).catch(next));
+// router.post('/buy/payment', (req: Request, res: Response, next: NextFunction) => 
+//   BuyController.initiatePurchase(req, res).catch(next));
+// Add these routes to your buyRoutes.ts
+router.get('/success', buyController_1.BuyController.handlePaymentSuccess);
+router.post('/transfer', buyController_1.BuyController.transferCrypto);
+// Create payment for buying crypto
+router.post('/', buyController_1.BuyController.initiatePurchase);
+router.post('/webhook', buyController_1.BuyController.processPaymentWebhook);
 // Test endpoint
 router.get('/test', (req, res) => res.json({ message: 'API is working!' }));
 exports.default = router;

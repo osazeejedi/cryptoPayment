@@ -1,1 +1,0 @@
-{"version":3,"file":"transferRoutes.js","sourceRoot":"","sources":["../../../src/routes/transferRoutes.ts"],"names":[],"mappings":";;AAAA,qCAAiC;AACjC,0EAAuE;AAEvE,MAAM,MAAM,GAAG,IAAA,gBAAM,GAAE,CAAC;AAExB,sBAAsB;AACtB,MAAM,CAAC,IAAI,CAAC,OAAO,EAAE,uCAAkB,CAAC,UAAU,CAAC,CAAC;AAEpD,qBAAqB;AACrB,MAAM,CAAC,GAAG,CAAC,UAAU,EAAE,uCAAkB,CAAC,UAAU,CAAC,CAAC;AAEtD,kBAAe,MAAM,CAAC"}

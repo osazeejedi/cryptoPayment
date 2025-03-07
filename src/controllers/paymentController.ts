@@ -259,7 +259,7 @@ export class PaymentController {
     try {
       const signature = req.headers['x-korapay-signature'];
       if (!signature || !KorapayService.verifyWebhook(req)) {
-        console.error('Webhook rejected: Invalid signature');
+        console.error('Invalid webhook signature');
         res.status(401).json({ status: 'error', message: 'Invalid webhook signature' });
         return;
       }
@@ -271,11 +271,15 @@ export class PaymentController {
         return;
       }
 
-      const { crypto_type, wallet_address, crypto_amount } = data.metadata;
+      const { crypto_type, wallet_address, crypto_amount } = data.metadata || {};
+      if (!crypto_type || !wallet_address || !crypto_amount) {
+        res.status(400).json({ status: 'error', message: 'Missing required metadata fields' });
+        return;
+      }
 
       const txHash = await BlockchainService.transferCrypto(wallet_address, crypto_amount, crypto_type);
 
-      await DatabaseService.getTransactionByReference(data.reference, {
+      await DatabaseService.updateTransactionByReference(data.reference, {
         status: 'completed',
         blockchainTxHash: txHash
       });
@@ -355,96 +359,50 @@ export class PaymentController {
    */
   static async handlePaymentSuccess(req: Request, res: Response): Promise<void> {
     try {
-      const { reference } = req.query;
-      
+      const reference = req.query.reference as string;
       if (!reference) {
-        res.status(400).send('Missing payment reference');
+        res.status(400).send('Missing payment reference.');
         return;
       }
-      
-      // You can render an HTML success page or redirect to your frontend
-      res.status(200).send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Payment Successful</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                padding: 40px 20px;
-                background-color: #f8f9fa;
-              }
-              .success-container {
-                max-width: 500px;
-                margin: 0 auto;
-                background-color: white;
-                border-radius: 10px;
-                padding: 30px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-              }
-              .success-icon {
-                color: #28a745;
-                font-size: 60px;
-                margin-bottom: 20px;
-              }
-              h1 {
-                color: #333;
-                margin-bottom: 15px;
-              }
-              p {
-                color: #666;
-                margin-bottom: 25px;
-              }
-              .reference {
-                background-color: #f1f1f1;
-                padding: 10px;
-                border-radius: 5px;
-                font-family: monospace;
-                margin-bottom: 25px;
-              }
-              .btn {
-                background-color: #007bff;
-                color: white;
-                border: none;
-                padding: 12px 25px;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 16px;
-                text-decoration: none;
-                display: inline-block;
-              }
-              .btn:hover {
-                background-color: #0069d9;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="success-container">
-              <div class="success-icon">✓</div>
-              <h1>Payment Successful!</h1>
-              <p>Your cryptocurrency purchase is being processed.</p>
-              <div class="reference">Reference: ${reference}</div>
-              <p>You will receive your crypto shortly.</p>
-              <a href="/" class="btn">Return to Home</a>
-            </div>
-            <script>
-              // If this page is opened in a WebView from a mobile app,
-              // you can communicate back to the app
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'PAYMENT_SUCCESS',
-                  reference: '${reference}'
-                }));
-              }
-            </script>
-          </body>
-        </html>
-      `);
+
+      // Verify payment status with Korapay
+      const paymentStatus = await KorapayService.verifyPayment(reference);
+
+      if (paymentStatus.status !== 'success') {
+         res.status(400).send('Payment not successful.');
+         return;
+      }
+
+      // Fetch transaction from database
+      const transaction = await DatabaseService.getTransactionByReference(reference);
+      if (!transaction) {
+         res.status(404).send('Transaction not found.');
+         return;
+      }
+
+      // Check if transaction already completed
+      if (transaction.status === 'completed') {
+         res.status(200).send('Transaction already completed.');
+         return;
+      }
+
+      // Initiate crypto transfer
+      const txHash = await BlockchainService.transferCrypto(
+        transaction.walletAddress,
+        transaction.cryptoAmount,
+        transaction.cryptoType
+      );
+
+      // Update transaction status
+      await DatabaseService.updateTransaction(transaction.id, {
+        status: 'completed',
+        blockchainTxHash: txHash
+      });
+
+      res.status(200).send(`Payment successful! Crypto transferred. Transaction hash: ${txHash}`);
     } catch (error) {
       console.error('Error handling payment success:', error);
-      res.status(500).send('An error occurred');
+      res.status(500).send('Failed to process payment.');
     }
   }
   

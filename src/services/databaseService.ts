@@ -153,45 +153,21 @@ export class DatabaseService {
    */
   static async createTransaction(data: TransactionData): Promise<any> {
     try {
-      // Map from TransactionData to database schema
-      const dbData = {
-        user_id: data.user_id,
-        transaction_type: data.transaction_type || 'buy',
-        status: data.status,
-        amount: data.amount,
-        crypto_type: data.cryptoType,
-        to_address: data.walletAddress || data.to_address,
-        payment_method: data.paymentMethod,
-        fiat_amount: data.fiat_amount,
-        fiat_currency: data.fiat_currency
-      };
-
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .insert(dbData)
+        .insert([data])
         .select()
         .single();
 
-      if (error) throw error;
-      
-      // Map from database schema to TransactionData
-      return {
-        id: transaction.id,
-        amount: transaction.amount,
-        cryptoAmount: transaction.amount,
-        cryptoType: transaction.crypto_type,
-        walletAddress: transaction.to_address,
-        status: transaction.status,
-        paymentMethod: transaction.payment_method,
-        blockchainTxHash: transaction.blockchain_tx_hash,
-        paymentReference: transaction.payment_reference,
-        notes: transaction.notes,
-        createdAt: transaction.created_at,
-        updatedAt: transaction.updated_at
-      };
+      if (error) {
+        console.error('Error creating transaction:', error);
+        throw error;
+      }
+
+      return transaction;
     } catch (error) {
-      console.error('Error creating transaction:', error);
-      return null;
+      console.error('Database error:', error);
+      throw error;
     }
   }
   
@@ -466,6 +442,30 @@ export class DatabaseService {
     } catch (error) {
       console.error('Error in updateWallet:', error);
       return null;
+    }
+  }
+
+  /**
+   * Update transaction by reference
+   */
+  static async updateTransactionByReference(reference: string, updateData: Partial<TransactionData>) {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .update(updateData)
+        .eq('paymentReference', reference)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating transaction by reference:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Database error:', error);
+      throw error;
     }
   }
 } 

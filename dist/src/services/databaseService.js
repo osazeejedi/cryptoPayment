@@ -421,6 +421,28 @@ class DatabaseService {
             return null;
         }
     }
+    /**
+     * Update transaction by reference
+     */
+    static async updateTransactionByReference(reference, updateData) {
+        try {
+            const { data, error } = await supabase_1.supabase
+                .from('transactions')
+                .update(updateData)
+                .eq('paymentReference', reference)
+                .select()
+                .single();
+            if (error) {
+                console.error('Error updating transaction by reference:', error);
+                throw error;
+            }
+            return data;
+        }
+        catch (error) {
+            console.error('Database error:', error);
+            throw error;
+        }
+    }
 }
 exports.DatabaseService = DatabaseService;
 DatabaseService.supabase = supabase_1.supabase;

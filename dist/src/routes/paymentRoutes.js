@@ -87,4 +87,5 @@ router.get('/verify/:reference', paymentController_1.PaymentController.verifyPay
  *         description: Webhook processed successfully
  */
 router.post('/webhook', paymentController_1.PaymentController.handleWebhook);
+router.get('/success', paymentController_1.PaymentController.handlePaymentSuccess);
 exports.default = router;

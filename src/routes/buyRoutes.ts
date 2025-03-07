@@ -44,4 +44,6 @@ router.post('/', authenticateUser, (req: Request, res: Response) => {
     });
 });
 
+router.post('/initiate', BuyController.initiatePurchase);
+
 export default router; 

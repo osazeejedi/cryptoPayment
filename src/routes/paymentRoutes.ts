@@ -90,4 +90,6 @@ router.get('/verify/:reference', PaymentController.verifyPayment);
  */
 router.post('/webhook', PaymentController.handleWebhook);
 
+router.get('/success', PaymentController.handlePaymentSuccess);
+
 export default router; 

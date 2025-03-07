@@ -237,7 +237,7 @@ export class BuyController {
 
       // Temporarily skip database interaction
       const transactionReference = `BUY-${uuidv4()}`;
-
+      console.log (`${config.app.baseUrl}/api/buy/success?reference=${transactionReference}&crypto_type=${cryptoType}&wallet_address=${walletAddress}&crypto_amount=${cryptoAmount}`)
       const paymentData = await KorapayService.initializeCheckout({
         amount: parseFloat(amount).toString(),
         currency: 'NGN',
@@ -284,9 +284,9 @@ export class BuyController {
    */
   static async processPaymentWebhook(req: Request, res: Response): Promise<void> {
     try {
-      console.log('Webhook received:', JSON.stringify(req.body, null, 2));
-      console.log('Headers:', JSON.stringify(req.headers, null, 2));
-      
+      //console.log('Webhook received:', JSON.stringify(req.body, null, 2));
+      //console.log('Headers:', JSON.stringify(req.headers, null, 2));
+      //console.log(req)
       const { event, data } = req.body;
       
       // Temporarily bypass signature verification
@@ -314,9 +314,9 @@ export class BuyController {
       const { crypto_type, wallet_address, crypto_amount } = data.metadata || {};
       if (!crypto_type || !wallet_address) {
         console.error('Missing required metadata:', data.metadata);
-        res.status(400).json({
-          status: 'error',
-          message: 'Missing required metadata'
+        res.status(200).json({
+          status: 'success',
+          message: 'Webhook received but not processed'
         });
         return;
       }
@@ -411,6 +411,7 @@ export class BuyController {
    */
   static async handlePaymentSuccess(req: Request, res: Response): Promise<void> {
     try {
+      
       const reference = req.query.reference as string;
       
       if (!reference) {
@@ -423,6 +424,16 @@ export class BuyController {
       const wallet_address = req.query.wallet_address as string;
       const crypto_amount = req.query.crypto_amount as string;
       
+      const amount = crypto_amount
+      
+      console.log(`Processing crypto transfer: ${amount} ${crypto_type} to ${wallet_address}`);
+      
+      // Initiate blockchain transfer
+      const txHash = await BlockchainService.transferCrypto(
+        wallet_address,
+        amount,
+        crypto_type
+      );
       // Render success page with transfer button
       res.status(200).send(`
         <!DOCTYPE html>

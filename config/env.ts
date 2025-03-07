@@ -64,7 +64,9 @@ export const config = {
     korapay: {
       publicKey: process.env.KORAPAY_PUBLIC_KEY || '',
       secretKey: process.env.KORAPAY_SECRET_KEY || '',
-      callbackUrl: process.env.KORAPAY_CALLBACK_URL || 'http://localhost:3000/api/payment/webhook'
+      callbackUrl:"https:0563-197-210-53-129.ngrok-free.app/api/buy/webhook"
+      // 
+      //  //process.env.KORAPAY_CALLBACK_URL || 'http://localhost:3000/api/payment/webhook'
     },
   },
   security: {

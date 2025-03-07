@@ -62,7 +62,7 @@ app.use('/api/transactions', transactionRoutes);
 console.log('Mounting routes...');
 
 // Mount buy routes
-app.use('/api/buy', apiRoutes);
+app.use('/api/buy', buyRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

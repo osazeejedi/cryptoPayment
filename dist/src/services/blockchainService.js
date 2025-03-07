@@ -158,10 +158,18 @@ class BlockchainService {
                 if (balance < amountInWei) {
                     throw new Error(`Insufficient balance in company wallet: ${ethers_1.ethers.formatEther(balance)} ETH`);
                 }
+                const nonce = await provider.getTransactionCount(wallet.address, "latest");
+                const gasLimit = await provider.estimateGas({ to: toAddress, value: amountInWei });
+                const gasPrice = await provider.getFeeData().then(data => data.gasPrice);
+                const chainId = (await provider.getNetwork()).chainId;
                 // Create transaction
                 const tx = {
                     to: toAddress,
-                    value: amountInWei
+                    value: amountInWei,
+                    nonce,
+                    gasLimit,
+                    gasPrice,
+                    chainId,
                 };
                 console.log('Transaction details:', tx);
                 // Send transaction

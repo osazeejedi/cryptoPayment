@@ -47,8 +47,7 @@ const router = Router();
  *         description: Unauthorized
  */
 router.post('/buy', BuyController.initiatePurchase);
-router.post('/webhook', (req: Request, res: Response, next: NextFunction) => 
-  BuyController.processPaymentWebhook(req, res).catch(next));
+
 router.post('/sell', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
   SellController.sellRequest(req as AuthenticatedRequest, res).catch(next));
 
@@ -73,8 +72,16 @@ router.post('/auth/login', (req: Request, res: Response, next: NextFunction) =>
   AuthController.login(req, res).catch(next));
 
 // Buy routes
-router.post('/buy/payment', (req: Request, res: Response, next: NextFunction) => 
-  BuyController.initiatePurchase(req, res).catch(next));
+// router.post('/buy/payment', (req: Request, res: Response, next: NextFunction) => 
+//   BuyController.initiatePurchase(req, res).catch(next));
+// Add these routes to your buyRoutes.ts
+router.get('/success', BuyController.handlePaymentSuccess);
+router.post('/transfer', BuyController.transferCrypto);
+// Create payment for buying crypto
+router.post('/', BuyController.initiatePurchase);
+
+
+router.post('/webhook', BuyController.processPaymentWebhook);
 
 // Test endpoint
 router.get('/test', (req, res) => res.json({ message: 'API is working!' }));

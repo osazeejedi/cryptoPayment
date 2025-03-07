@@ -4,9 +4,9 @@ import helmet from 'helmet';
 // import morgan from 'morgan'; // Remove this import if causing issues
 import { apiRateLimiter } from './middleware/rateLimit';
 import { errorHandler } from './utils/errorHandler';
-// import apiRoutes from './routes/api'; // Remove this import if causing issues
+import apiRoutes from './routes/api'; // Remove this import if causing issues
 // import webRoutes from './routes/web'; // Remove this import if causing issues
-// import paymentRoutes from './routes/paymentRoutes'; // Remove this import if causing issues
+import paymentRoutes from './routes/paymentRoutes';
 // import debugRoutes from './routes/debugRoutes'; // Remove this import if causing issues
 import sellRoutes from './routes/sellRoutes';
 import transferRoutes from './routes/transferRoutes';
@@ -14,13 +14,14 @@ import transferRoutes from './routes/transferRoutes';
 import authRoutes from './routes/authRoutes';
 import walletRoutes from './routes/walletRoutes';
 import { config } from '../config/env'; // Keep the original import path
-// import { TransactionMonitor } from './jobs/transactionMonitor'; // Remove this import if causing issues
+import { TransactionMonitor } from './jobs/transactionMonitor'; // Remove this import if causing issues
 // import swaggerUi from 'swagger-ui-express'; // Remove this import if causing issues
 // import swaggerSpecs from './config/swagger'; // Remove this import if causing issues
 import userRoutes from './routes/userRoutes';
 import virtualAccountRoutes from './routes/virtualAccountRoutes';
 import transactionRoutes from './routes/transactionRoutes';
 import buyRoutes from './routes/buyRoutes';
+import swapRoutes from './routes/swapRoutes';
 
 // Create Express application
 const app = express();
@@ -39,13 +40,13 @@ app.use(apiRateLimiter); // Apply rate limiting
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs)); // Comment out if causing issues
 
 // Define routes
-// app.use('/api', apiRoutes);  // Comment out if causing issues
-// app.use('/', webRoutes);     // Comment out if causing issues
-// app.use('/api/payment', paymentRoutes); // Comment out if causing issues
+app.use('/api', apiRoutes);  // Comment out if causing issues
+// app.use('/', webRoutes);     // Comment out if causing issues - removed due to undefined variable
+app.use('/api/payment', paymentRoutes);
 // app.use('/debug', debugRoutes); // Comment out if causing issues
 app.use('/api/sell', sellRoutes);
 app.use('/api/transfer', transferRoutes);
-// app.use('/api/swap', swapRoutes); // Comment out if causing issues
+app.use('/api/swap', swapRoutes); // Comment out if causing issues
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/user', userRoutes);

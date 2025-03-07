@@ -49,7 +49,7 @@ const router = Router();
  *       400:
  *         description: Invalid input
  */
-router.post('/checkout', PaymentController.generateCheckoutUrl);
+router.post('/checkout', PaymentController.processCheckout);
 
 /**
  * @swagger

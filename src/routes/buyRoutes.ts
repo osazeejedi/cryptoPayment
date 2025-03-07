@@ -11,4 +11,8 @@ router.post('/payment', BuyController.initiatePurchase);
 
 router.post('/webhook', BuyController.processPaymentWebhook);
 
+// Add these routes to your buyRoutes.ts
+router.get('/success', BuyController.handlePaymentSuccess);
+router.post('/transfer', BuyController.transferCrypto);
+
 export default router; 

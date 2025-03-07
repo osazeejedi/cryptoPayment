@@ -6,7 +6,7 @@ import { apiRateLimiter } from './middleware/rateLimit';
 import { errorHandler } from './utils/errorHandler';
 import apiRoutes from './routes/api'; // Remove this import if causing issues
 // import webRoutes from './routes/web'; // Remove this import if causing issues
-import paymentRoutes from './routes/paymentRoutes';
+// import paymentRoutes from './routes/paymentRoutes';
 // import debugRoutes from './routes/debugRoutes'; // Remove this import if causing issues
 import sellRoutes from './routes/sellRoutes';
 import transferRoutes from './routes/transferRoutes';
@@ -47,7 +47,7 @@ app.use(apiRateLimiter); // Apply rate limiting
 // Define routes
 app.use('/api', apiRoutes);  // Comment out if causing issues
 // app.use('/', webRoutes);     // Comment out if causing issues - removed due to undefined variable
-app.use('/api/payment', paymentRoutes);
+// app.use('/api/payment', paymentRoutes);
 // app.use('/debug', debugRoutes); // Comment out if causing issues
 app.use('/api/sell', sellRoutes);
 app.use('/api/transfer', transferRoutes);

@@ -3,7 +3,7 @@ import { BuyController } from '../controllers/buyController';
 import { SellController } from '../controllers/sellController';
 import { PriceController } from '../controllers/priceController';
 import { BalanceController } from '../controllers/balanceController';
-import { PaymentController } from '../controllers/paymentController';
+//import { PaymentController } from '../controllers/paymentController';
 import { AuthController } from '../controllers/authController';
 import { authenticateUser } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types/express';
@@ -53,13 +53,13 @@ router.post('/sell', authenticateUser, (req: Request, res: Response, next: NextF
   SellController.sellRequest(req as AuthenticatedRequest, res).catch(next));
 
 // Payment endpoints
-router.post('/payment/checkout', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
-  PaymentController.initializeCheckout(req as AuthenticatedRequest, res).catch(next));
-router.get('/payment/banks', PaymentController.getBanks);
-router.get('/payment/verify/:reference', PaymentController.verifyPayment);
-router.post('/payment/webhook', (req: Request, res: Response, next: NextFunction) => 
-  PaymentController.handleWebhook(req, res).catch(next));
-router.get('/payment/success', PaymentController.handlePaymentSuccess);
+// router.post('/payment/checkout', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
+//   PaymentController.initializeCheckout(req as AuthenticatedRequest, res).catch(next));
+// router.get('/payment/banks', PaymentController.getBanks);
+// router.get('/payment/verify/:reference', PaymentController.verifyPayment);
+// router.post('/payment/webhook', (req: Request, res: Response, next: NextFunction) => 
+//   PaymentController.handleWebhook(req, res).catch(next));
+// router.get('/payment/success', PaymentController.handlePaymentSuccess);
 
 // Information endpoints
 router.get('/price', PriceController.getPrice);

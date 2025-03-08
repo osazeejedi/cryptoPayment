@@ -7,6 +7,7 @@ import { BalanceController } from '../controllers/balanceController';
 import { AuthController } from '../controllers/authController';
 import { authenticateUser } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types/express';
+import { TransferController } from '../controllers/transferController';
 
 const router = Router();
 
@@ -48,9 +49,9 @@ const router = Router();
  */
 router.post('/buy', BuyController.initiatePurchase);
 
-router.post('/sell', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
-  SellController.sellRequest(req as AuthenticatedRequest, res).catch(next));
-
+router.post('/sell', (req: Request, res: Response, next: NextFunction) => 
+  SellController.processBankPayout(req, res).catch(next));
+router.post('/send', TransferController.sendCrypto);
 // Payment endpoints
 // router.post('/payment/checkout', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
 //   PaymentController.initializeCheckout(req as AuthenticatedRequest, res).catch(next));

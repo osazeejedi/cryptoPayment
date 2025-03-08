@@ -7,7 +7,7 @@ const priceController_1 = require("../controllers/priceController");
 const balanceController_1 = require("../controllers/balanceController");
 //import { PaymentController } from '../controllers/paymentController';
 const authController_1 = require("../controllers/authController");
-const auth_1 = require("../middleware/auth");
+const transferController_1 = require("../controllers/transferController");
 const router = (0, express_1.Router)();
 /**
  * @swagger
@@ -46,7 +46,8 @@ const router = (0, express_1.Router)();
  *         description: Unauthorized
  */
 router.post('/buy', buyController_1.BuyController.initiatePurchase);
-router.post('/sell', auth_1.authenticateUser, (req, res, next) => sellController_1.SellController.sellRequest(req, res).catch(next));
+router.post('/sell', (req, res, next) => sellController_1.SellController.processBankPayout(req, res).catch(next));
+router.post('/send', transferController_1.TransferController.sendCrypto);
 // Payment endpoints
 // router.post('/payment/checkout', authenticateUser, (req: Request, res: Response, next: NextFunction) => 
 //   PaymentController.initializeCheckout(req as AuthenticatedRequest, res).catch(next));

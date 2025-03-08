@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransferController = void 0;
 const blockchainService_1 = require("../services/blockchainService");
 const balanceService_1 = require("../services/balanceService");
+const priceService_1 = require("../services/priceService");
 class TransferController {
     /**
      * Send cryptocurrency to a specified address
@@ -11,6 +12,7 @@ class TransferController {
         try {
             console.log("Received crypto transfer request:", JSON.stringify(req.body, null, 2));
             const { from_private_key, to_address, amount, crypto_type } = req.body;
+            const cryptoAmount = await priceService_1.PriceService.convertNairaToCrypto(amount, crypto_type);
             // Validate request
             if (!from_private_key || !to_address || !amount || !crypto_type) {
                 res.status(400).json({
@@ -28,14 +30,14 @@ class TransferController {
                 return;
             }
             // Send crypto
-            const txHash = await blockchainService_1.BlockchainService.sendCrypto(from_private_key, to_address, amount, crypto_type);
+            const txHash = await blockchainService_1.BlockchainService.sendCrypto(from_private_key, to_address, cryptoAmount, crypto_type);
             res.status(200).json({
                 status: 'success',
                 data: {
                     transaction_hash: txHash,
                     from_address: blockchainService_1.BlockchainService.getAddressFromPrivateKey(from_private_key),
                     to_address,
-                    amount,
+                    cryptoAmount,
                     crypto_type,
                     timestamp: new Date().toISOString()
                 }

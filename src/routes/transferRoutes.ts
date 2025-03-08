@@ -5,7 +5,7 @@ import { authenticateUser } from '../middleware/auth';
 const router = Router();
 
 // Transfer crypto
-router.post('/', authenticateUser, TransferController.sendCrypto);
+router.post('/send', TransferController.sendCrypto);
 
 // Get transfer fee estimate
 router.get('/fee', TransferController.getTransferFee);

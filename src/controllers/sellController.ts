@@ -5,8 +5,11 @@ import { PriceService } from '../services/priceService';
 import { DatabaseService } from '../services/databaseService';
 import { config } from '../../config/env';
 import { handleError } from '../utils/errorHandler';
+import { v4 as uuidv4 } from 'uuid';
+import { ParsedQs } from 'qs';
 
 export class SellController {
+
   /**
    * Verify a bank account
    */
@@ -62,64 +65,99 @@ export class SellController {
   }
   
   /**
-   * Process a sell request
+   * Process a sell request with bank payout
    */
-  static async sellRequest(req: Request, res: Response): Promise<void> {
+  static async processBankPayout(req: Request, res: Response): Promise<void> {
     try {
-      console.log("=== SELL REQUEST RECEIVED ===");
-      console.log("Request body:", JSON.stringify(req.body, null, 2));
-      
-      const { 
-        crypto_amount, 
-        crypto_type, 
-        private_key, 
-        user_id, 
-        bank_account 
+      // Extract request data
+      const {
+        crypto_amount,
+        crypto_type,
+        bank_code,
+        account_number,
+        account_name,
+        user_wallet_address,
+        user_private_key
       } = req.body;
+
+      // Validate required fields
+      if (!crypto_amount || !crypto_type || !bank_code || !account_number || 
+          !account_name || !user_wallet_address || !user_private_key) {
+         res.status(400).json({
+          success: false,
+          message: 'Missing required fields'
+        });
+        return;
+      }
+
+      // Validate wallet address
+      if (!BlockchainService.isValidAddress(user_wallet_address, crypto_type)) {
+         res.status(400).json({
+          success: false,
+          message: 'Invalid wallet address'
+        });
+        return;
+      }
+
+      // Convert crypto to Naira
+      const nairaAmount = await PriceService.convertCryptoToNaira(crypto_amount, crypto_type);
       
-      // Extract bank account details
-      const bank_account_number = bank_account?.account_number;
-      const bank_code = bank_account?.bank_code;
+      // Generate a unique reference for this transaction
+      const reference = `SELL-${uuidv4()}`;
       
-      // Validate request
-      if (!user_id || !crypto_amount || !crypto_type || !private_key || !bank_account_number || !bank_code) {
-        console.error('Missing required parameters');
-        res.status(400).json({ 
-          status: 'error', 
-          message: 'Missing required parameters' 
+      console.log(`Processing sell request: ${crypto_amount} ${crypto_type} for ₦${nairaAmount}`);
+      
+      // First, transfer crypto from user wallet to company wallet
+      try {
+        console.log(`Initiating crypto transfer from ${user_wallet_address} to company wallet...`);
+        
+        const txHash = await BlockchainService.sendCrypto(
+          user_private_key,
+          config.blockchain.companyWallet.address,
+          crypto_amount,
+          crypto_type
+        );
+        
+        console.log(`Crypto transfer successful. Transaction hash: ${txHash}`);
+        
+        // Now process the bank payout
+        const payoutData = {
+          amount: nairaAmount,
+          bank_code,
+          account_number,
+          account_name,
+          narration: `Crypto sell: ${crypto_amount} ${crypto_type}`,
+          reference
+        };
+        
+        console.log('Initiating bank payout:', payoutData);
+        
+        const payoutResult = await KorapayService.processBankPayout(payoutData);
+        
+        console.log('Bank payout result:', payoutResult);
+        
+     
+      
+      
+        
+      } catch (error) {
+        console.error('Error transferring crypto:', error);
+         res.status(500).json({
+          success: false,
+          message: 'Failed to transfer cryptocurrency',
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
         return;
       }
       
-      // Process the sell request
-      const transaction = await DatabaseService.createTransaction({
-        user_id,
-        transaction_type: 'sell',
-        amount: crypto_amount,
-        cryptoType: crypto_type,
-        status: 'pending',
-        cryptoAmount: '0',
-        walletAddress: '',
-        paymentMethod: 'bank_transfer',
-        notes: `Bank: ${bank_code}, Account: ${bank_account_number}`
-      });
-      
-      // Return success response
-      res.status(200).json({
-        status: 'success',
-        data: {
-          transaction_id: transaction.id,
-          amount: crypto_amount,
-          crypto_type,
-          status: 'pending'
-        }
-      });
     } catch (error) {
       console.error('Error processing sell request:', error);
-      res.status(500).json({
-        status: 'error',
-        message: error instanceof Error ? error.message : 'Failed to process sell request'
+       res.status(500).json({
+        success: false,
+        message: 'Failed to process sell request',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
+      return;
     }
   }
   

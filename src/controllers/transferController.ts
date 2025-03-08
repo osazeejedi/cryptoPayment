@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
 import { BlockchainService } from '../services/blockchainService';
 import { BalanceService } from '../services/balanceService';
+import { PriceService } from '../services/priceService';
 
 export class TransferController {
   /**
    * Send cryptocurrency to a specified address
    */
   static async sendCrypto(req: Request, res: Response): Promise<void> {
+
+   
     try {
       console.log("Received crypto transfer request:", JSON.stringify(req.body, null, 2));
       
@@ -16,7 +19,7 @@ export class TransferController {
         amount, 
         crypto_type 
       } = req.body;
-      
+      const cryptoAmount = await PriceService.convertNairaToCrypto(amount, crypto_type);
       // Validate request
       if (!from_private_key || !to_address || !amount || !crypto_type) {
         res.status(400).json({ 
@@ -39,7 +42,7 @@ export class TransferController {
       const txHash = await BlockchainService.sendCrypto(
         from_private_key,
         to_address,
-        amount,
+        cryptoAmount,
         crypto_type
       );
       
@@ -49,7 +52,7 @@ export class TransferController {
           transaction_hash: txHash,
           from_address: BlockchainService.getAddressFromPrivateKey(from_private_key),
           to_address,
-          amount,
+          cryptoAmount,
           crypto_type,
           timestamp: new Date().toISOString()
         }

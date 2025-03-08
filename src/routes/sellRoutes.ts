@@ -36,9 +36,9 @@ router.post('/verify-account', (req, res, next) => {
  * @desc Process a sell request
  * @access Public
  */
-router.post('/crypto', authenticateUser, (req, res, next) => {
+router.post('/crypto', (req, res, next) => {
   try {
-    SellController.sellRequest(req, res);
+    SellController.processBankPayout(req, res);
   } catch (error) {
     next(error);
   }
@@ -65,5 +65,8 @@ router.get('/verify/:transaction_id', (req, res, next) => {
     next(error);
   }
 });
+
+// Process a sell request with bank payout
+router.post('/bank-payout', SellController.processBankPayout);
 
 export default router; 

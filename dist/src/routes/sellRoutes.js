@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const sellController_1 = require("../controllers/sellController");
-const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 /**
  * @route GET /api/sell/banks
@@ -38,9 +37,9 @@ router.post('/verify-account', (req, res, next) => {
  * @desc Process a sell request
  * @access Public
  */
-router.post('/crypto', auth_1.authenticateUser, (req, res, next) => {
+router.post('/crypto', (req, res, next) => {
     try {
-        sellController_1.SellController.sellRequest(req, res);
+        sellController_1.SellController.processBankPayout(req, res);
     }
     catch (error) {
         next(error);
@@ -68,4 +67,6 @@ router.get('/verify/:transaction_id', (req, res, next) => {
         next(error);
     }
 });
+// Process a sell request with bank payout
+router.post('/bank-payout', sellController_1.SellController.processBankPayout);
 exports.default = router;

@@ -64,7 +64,7 @@ class SellController {
     static async processBankPayout(req, res) {
         try {
             // Extract request data
-            const { crypto_amount, crypto_type, bank_code, account_number, account_name, user_wallet_address, user_private_key, email } = req.body;
+            const { crypto_amount, crypto_type, bank_code, account_number, account_name, user_wallet_address, user_private_key, email, bank_name, first_name, last_name, address_information } = req.body;
             // Validate required fields
             if (!crypto_amount || !crypto_type || !bank_code || !account_number ||
                 !account_name || !user_wallet_address || !user_private_key) {
@@ -100,7 +100,11 @@ class SellController {
                     account_name,
                     narration: `Crypto sell: ${crypto_amount} ${crypto_type}`,
                     reference,
-                    email: email || 'customer@example.com'
+                    email: email || 'customer@example.com',
+                    bank_name,
+                    first_name,
+                    last_name,
+                    address_information
                 };
                 console.log('Initiating bank payout:', payoutData);
                 const payoutResult = await korapayService_1.KorapayService.processBankPayout(payoutData);

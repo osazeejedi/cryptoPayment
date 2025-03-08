@@ -78,7 +78,11 @@ export class SellController {
         account_name,
         user_wallet_address,
         user_private_key,
-        email
+        email,
+        bank_name,
+        first_name,
+        last_name,
+        address_information
       } = req.body;
 
       // Validate required fields
@@ -98,7 +102,6 @@ export class SellController {
           message: 'Invalid wallet address'
         });
         return;
-
       }
 
       // Convert crypto to Naira
@@ -130,7 +133,11 @@ export class SellController {
           account_name,
           narration: `Crypto sell: ${crypto_amount} ${crypto_type}`,
           reference,
-          email: email || 'customer@example.com'
+          email: email || 'customer@example.com',
+          bank_name,
+          first_name,
+          last_name,
+          address_information
         };
         
         console.log('Initiating bank payout:', payoutData);
@@ -167,7 +174,7 @@ export class SellController {
           message: 'Failed to transfer cryptocurrency',
           error: error instanceof Error ? error.message : 'Unknown error'
         });
-        return;
+        return
       }
       
     } catch (error) {
@@ -177,7 +184,7 @@ export class SellController {
         message: 'Failed to process sell request',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      return;
+      return
     }
   }
   

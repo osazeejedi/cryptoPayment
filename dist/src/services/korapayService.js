@@ -336,25 +336,28 @@ class KorapayService {
             const amount = typeof payoutData.amount === 'number'
                 ? payoutData.amount.toString()
                 : payoutData.amount;
+            // Extract first and last name from account_name if not provided
+            const names = payoutData.account_name.split(' ');
+            const firstName = payoutData.first_name || names[0] || '';
+            const lastName = payoutData.last_name || (names.length > 1 ? names[names.length - 1] : '');
             // Prepare payload according to Korapay's expected structure
             const payload = {
-                amount,
-                currency: "NGN",
-                reference: payoutData.reference,
-                narration: payoutData.narration || `Payout to ${payoutData.account_name}`,
                 destination: {
-                    type: "bank_account",
+                    amount,
+                    currency: "NGN",
                     bank_account: {
-                        bank: payoutData.bank_code,
-                        account: payoutData.account_number,
-                        name: payoutData.account_name
-                    },
-                    customer: {
-                        name: payoutData.account_name,
-                        email: payoutData.email || "customer@example.com"
+                        account_number: payoutData.account_number,
+                        bank_code: payoutData.bank_code,
+                        account_name: payoutData.account_name,
+                        bank_name: payoutData.bank_name || '',
+                        first_name: firstName,
+                        last_name: lastName,
+                        address_information: payoutData.address_information || '',
+                        payment_method: "bank_transfer"
                     }
                 },
-                callback_url: env_1.config.payment.korapay.callbackUrl
+                reference: payoutData.reference,
+                narration: payoutData.narration || `Payout to ${payoutData.account_name}`
             };
             console.log('Korapay payout payload:', JSON.stringify(payload, null, 2));
             const response = await axios_1.default.post(`${this.BASE_URL}/transactions/disburse`, payload, {

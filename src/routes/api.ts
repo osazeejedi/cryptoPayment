@@ -8,6 +8,7 @@ import { AuthController } from '../controllers/authController';
 import { authenticateUser } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types/express';
 import { TransferController } from '../controllers/transferController';
+import axios from 'axios';
 
 const router = Router();
 
@@ -66,6 +67,7 @@ router.get('/price', PriceController.getPrice);
 router.get('/convert', PriceController.convertNairaToCrypto);
 router.get('/balance', BalanceController.getBalance);
 
+
 // Auth routes
 router.post('/auth/register', (req: Request, res: Response, next: NextFunction) => 
   AuthController.register(req, res).catch(next));
@@ -86,5 +88,23 @@ router.post('/webhook', BuyController.processPaymentWebhook);
 
 // Test endpoint
 router.get('/test', (req, res) => res.json({ message: 'API is working!' }));
+
+// Add this route to your api.ts file
+router.get('/server-ip', async (req, res) => {
+  try {
+    const response = await axios.get('https://api64.ipify.org?format=json');
+    res.json({
+      success: true,
+      ip: response.data.ip,
+      message: `Your Railway Server IP: ${response.data.ip}`
+    });
+  } catch (error) {
+    console.error('Error fetching server IP:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching server IP'
+    });
+  }
+});
 
 export default router; 

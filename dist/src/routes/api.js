@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const buyController_1 = require("../controllers/buyController");
@@ -8,6 +11,7 @@ const balanceController_1 = require("../controllers/balanceController");
 //import { PaymentController } from '../controllers/paymentController';
 const authController_1 = require("../controllers/authController");
 const transferController_1 = require("../controllers/transferController");
+const axios_1 = __importDefault(require("axios"));
 const router = (0, express_1.Router)();
 /**
  * @swagger
@@ -74,4 +78,22 @@ router.post('/', buyController_1.BuyController.initiatePurchase);
 router.post('/webhook', buyController_1.BuyController.processPaymentWebhook);
 // Test endpoint
 router.get('/test', (req, res) => res.json({ message: 'API is working!' }));
+// Add this route to your api.ts file
+router.get('/server-ip', async (req, res) => {
+    try {
+        const response = await axios_1.default.get('https://api64.ipify.org?format=json');
+        res.json({
+            success: true,
+            ip: response.data.ip,
+            message: `Your Railway Server IP: ${response.data.ip}`
+        });
+    }
+    catch (error) {
+        console.error('Error fetching server IP:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching server IP'
+        });
+    }
+});
 exports.default = router;

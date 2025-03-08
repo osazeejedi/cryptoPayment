@@ -332,24 +332,35 @@ class KorapayService {
     static async processBankPayout(payoutData) {
         try {
             console.log('Processing bank payout:', payoutData);
-            const response = await axios_1.default.post('https://api.korapay.com/merchant/api/v1/transactions/disburse', {
+            // Format amount as string if it's a number
+            const amount = typeof payoutData.amount === 'number'
+                ? payoutData.amount.toString()
+                : payoutData.amount;
+            // Prepare payload according to Korapay's expected structure
+            const payload = {
+                amount,
+                currency: "NGN",
                 reference: payoutData.reference,
+                narration: payoutData.narration || `Payout to ${payoutData.account_name}`,
                 destination: {
-                    type: 'bank_account',
-                    amount: payoutData.amount,
-                    currency: 'NGN',
+                    type: "bank_account",
                     bank_account: {
                         bank: payoutData.bank_code,
                         account: payoutData.account_number,
                         name: payoutData.account_name
                     },
-                    narration: payoutData.narration
+                    customer: {
+                        name: payoutData.account_name,
+                        email: payoutData.email || "customer@example.com"
+                    }
                 },
                 callback_url: env_1.config.payment.korapay.callbackUrl
-            }, {
+            };
+            console.log('Korapay payout payload:', JSON.stringify(payload, null, 2));
+            const response = await axios_1.default.post(`${this.BASE_URL}/transactions/disburse`, payload, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${env_1.config.payment.korapay.secretKey}`
+                    'Authorization': `Bearer ${this.SECRET_KEY}`
                 }
             });
             console.log('Payout response:', response.data);

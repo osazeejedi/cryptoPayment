@@ -444,37 +444,52 @@ export class KorapayService {
    * @returns Payout response
    */
   static async processBankPayout(payoutData: {
-    amount: string;
+    amount: string | number;
     bank_code: string;
     account_number: string;
     account_name: string;
-    narration: string;
+    narration?: string;
     reference: string;
+    email?: string;
   }): Promise<any> {
     try {
       console.log('Processing bank payout:', payoutData);
       
-      const response = await axios.post(
-        'https://api.korapay.com/merchant/api/v1/transactions/disburse',
-        {
-          reference: payoutData.reference,
-          destination: {
-            type: 'bank_account',
-            amount: payoutData.amount,
-            currency: 'NGN',
-            bank_account: {
-              bank: payoutData.bank_code,
-              account: payoutData.account_number,
-              name: payoutData.account_name
-            },
-            narration: payoutData.narration
+      // Format amount as string if it's a number
+      const amount = typeof payoutData.amount === 'number' 
+        ? payoutData.amount.toString() 
+        : payoutData.amount;
+      
+      // Prepare payload according to Korapay's expected structure
+      const payload = {
+        amount,
+        currency: "NGN",
+        reference: payoutData.reference,
+        narration: payoutData.narration || `Payout to ${payoutData.account_name}`,
+        destination: {
+          type: "bank_account",
+          bank_account: {
+            bank: payoutData.bank_code,
+            account: payoutData.account_number,
+            name: payoutData.account_name
           },
-          callback_url: config.payment.korapay.callbackUrl
+          customer: {
+            name: payoutData.account_name,
+            email: payoutData.email || "customer@example.com"
+          }
         },
+        callback_url: config.payment.korapay.callbackUrl
+      };
+      
+      console.log('Korapay payout payload:', JSON.stringify(payload, null, 2));
+      
+      const response = await axios.post(
+        `${this.BASE_URL}/transactions/disburse`,
+        payload,
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.payment.korapay.secretKey}`
+            'Authorization': `Bearer ${this.SECRET_KEY}`
           }
         }
       );

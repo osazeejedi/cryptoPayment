@@ -64,7 +64,7 @@ class SellController {
     static async processBankPayout(req, res) {
         try {
             // Extract request data
-            const { crypto_amount, crypto_type, bank_code, account_number, account_name, user_wallet_address, user_private_key } = req.body;
+            const { crypto_amount, crypto_type, bank_code, account_number, account_name, user_wallet_address, user_private_key, email } = req.body;
             // Validate required fields
             if (!crypto_amount || !crypto_type || !bank_code || !account_number ||
                 !account_name || !user_wallet_address || !user_private_key) {
@@ -99,11 +99,32 @@ class SellController {
                     account_number,
                     account_name,
                     narration: `Crypto sell: ${crypto_amount} ${crypto_type}`,
-                    reference
+                    reference,
+                    email: email || 'customer@example.com'
                 };
                 console.log('Initiating bank payout:', payoutData);
                 const payoutResult = await korapayService_1.KorapayService.processBankPayout(payoutData);
                 console.log('Bank payout result:', payoutResult);
+                // Return success response
+                res.status(200).json({
+                    success: true,
+                    message: 'Sell request processed successfully',
+                    data: {
+                        transaction_id: reference,
+                        crypto_amount,
+                        crypto_type,
+                        naira_amount: nairaAmount,
+                        blockchain_tx_hash: txHash,
+                        payout_status: payoutResult.status,
+                        payout_reference: payoutResult.reference || reference,
+                        bank_details: {
+                            bank_code,
+                            account_number,
+                            account_name
+                        }
+                    }
+                });
+                return;
             }
             catch (error) {
                 console.error('Error transferring crypto:', error);

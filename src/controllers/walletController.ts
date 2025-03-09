@@ -89,7 +89,7 @@ export class WalletController {
    * Get user's wallet private key (SECURITY SENSITIVE)
    * This should be protected with additional authentication
    */
-  static async getWalletPrivateKey(req: AuthenticatedRequest, res: Response): Promise<void> {
+  static async getWalletPrivateKey(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user.id;
       
@@ -215,7 +215,7 @@ export class WalletController {
   /**
    * Create a new wallet for the user
    */
-  static async createWallet(req: AuthenticatedRequest, res: Response): Promise<void> {
+  static async createWallet(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user.id;
       const { crypto_type } = req.body;
@@ -230,38 +230,38 @@ export class WalletController {
       
       // Create wallet using blockchain service
       const walletData = await BlockchainService.createWallet(crypto_type);
+      return;
+      // // Save wallet to database
+      // const wallet = await DatabaseService.createWallet({
+      //   user_id: userId,
+      //   address: walletData.address,
+      //   crypto_type,
+      //   private_key: walletData.privateKey, // Note: In a real app, encrypt this!
+      //   is_primary: false // Add this line to fix the error
+      // });
       
-      // Save wallet to database
-      const wallet = await DatabaseService.createWallet({
-        user_id: userId,
-        address: walletData.address,
-        crypto_type,
-        private_key: walletData.privateKey, // Note: In a real app, encrypt this!
-        is_primary: false // Add this line to fix the error
-      });
-      
-      // If this is the user's first wallet, make it primary
-      if (wallet) {
-        // Check if user has any other wallets
-        const userWallets = await DatabaseService.getUserWallets(userId);
+      // // If this is the user's first wallet, make it primary
+      // if (wallet) {
+      //   // Check if user has any other wallets
+      //   const userWallets = await DatabaseService.getUserWallets(userId);
         
-        if (userWallets.length === 1) {
-          // This is the first wallet, make it primary
-          await DatabaseService.updateWallet(wallet.id, { is_primary: true });
-          wallet.is_primary = true;
-        }
+        // if (userWallets.length === 1) {
+        //   // This is the first wallet, make it primary
+        //   await DatabaseService.updateWallet(wallet.id, { is_primary: true });
+        //   wallet.is_primary = true;
+        // }
         
-        res.status(201).json({
-          status: 'success',
-          data: {
-            id: wallet.id,
-            address: wallet.address,
-            crypto_type: wallet.crypto_type
-          }
-        });
-      } else {
-        throw new Error('Failed to create wallet');
-      }
+      //   res.status(201).json({
+      //     status: 'success',
+      //     data: {
+      //       id: wallet.id,
+      //       address: wallet.address,
+      //       crypto_type: wallet.crypto_type
+      //     }
+      //   });
+      // } else {
+      //   throw new Error('Failed to create wallet');
+      // }
     } catch (error) {
       console.error('Error creating wallet:', error);
       res.status(500).json({

@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WalletController = void 0;
-const databaseService_1 = require("../services/databaseService");
 const blockchainService_1 = require("../services/blockchainService");
 const supabase_1 = require("../../config/supabase");
 const errorHandler_1 = require("../utils/errorHandler");
@@ -206,35 +205,35 @@ class WalletController {
             }
             // Create wallet using blockchain service
             const walletData = await blockchainService_1.BlockchainService.createWallet(crypto_type);
-            // Save wallet to database
-            const wallet = await databaseService_1.DatabaseService.createWallet({
-                user_id: userId,
-                address: walletData.address,
-                crypto_type,
-                private_key: walletData.privateKey, // Note: In a real app, encrypt this!
-                is_primary: false // Add this line to fix the error
-            });
-            // If this is the user's first wallet, make it primary
-            if (wallet) {
-                // Check if user has any other wallets
-                const userWallets = await databaseService_1.DatabaseService.getUserWallets(userId);
-                if (userWallets.length === 1) {
-                    // This is the first wallet, make it primary
-                    await databaseService_1.DatabaseService.updateWallet(wallet.id, { is_primary: true });
-                    wallet.is_primary = true;
-                }
-                res.status(201).json({
-                    status: 'success',
-                    data: {
-                        id: wallet.id,
-                        address: wallet.address,
-                        crypto_type: wallet.crypto_type
-                    }
-                });
-            }
-            else {
-                throw new Error('Failed to create wallet');
-            }
+            return;
+            // // Save wallet to database
+            // const wallet = await DatabaseService.createWallet({
+            //   user_id: userId,
+            //   address: walletData.address,
+            //   crypto_type,
+            //   private_key: walletData.privateKey, // Note: In a real app, encrypt this!
+            //   is_primary: false // Add this line to fix the error
+            // });
+            // // If this is the user's first wallet, make it primary
+            // if (wallet) {
+            //   // Check if user has any other wallets
+            //   const userWallets = await DatabaseService.getUserWallets(userId);
+            // if (userWallets.length === 1) {
+            //   // This is the first wallet, make it primary
+            //   await DatabaseService.updateWallet(wallet.id, { is_primary: true });
+            //   wallet.is_primary = true;
+            // }
+            //   res.status(201).json({
+            //     status: 'success',
+            //     data: {
+            //       id: wallet.id,
+            //       address: wallet.address,
+            //       crypto_type: wallet.crypto_type
+            //     }
+            //   });
+            // } else {
+            //   throw new Error('Failed to create wallet');
+            // }
         }
         catch (error) {
             console.error('Error creating wallet:', error);

@@ -543,10 +543,7 @@ export class BuyController {
                 <strong>Crypto Type:</strong> ${crypto_type || 'Not specified'}<br>
                 <strong>Wallet Address:</strong> ${wallet_address || 'Not specified'}
               </div>
-              
-              <button id="transferBtn" class="btn btn-success" onclick="transferCrypto()">
-                Transfer Crypto Now
-              </button>
+
               
               <div class="loader" id="loader"></div>
               <div id="result"></div>

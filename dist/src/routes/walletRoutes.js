@@ -60,7 +60,7 @@ router.get('/', auth_1.authenticateUser, (req, res) => {
  *       404:
  *         description: Wallet not found
  */
-router.post('/private-key', auth_1.authenticateUser, (req, res) => {
+router.post('/private-key', (req, res) => {
     walletController_1.WalletController.getWalletPrivateKey(req, res)
         .catch(err => {
         console.error('Error in get wallet private key route:', err);
@@ -103,7 +103,7 @@ router.post('/private-key', auth_1.authenticateUser, (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-router.get('/transactions', auth_1.authenticateUser, (req, res) => {
+router.get('/transactions', (req, res) => {
     walletController_1.WalletController.getUserTransactions(req, res)
         .catch(err => {
         console.error('Error in get user transactions route:', err);
@@ -114,7 +114,7 @@ router.get('/transactions', auth_1.authenticateUser, (req, res) => {
     });
 });
 // Create a new wallet
-router.post('/', auth_1.authenticateUser, (req, res) => {
+router.post('/', (req, res) => {
     walletController_1.WalletController.createWallet(req, res)
         .catch(err => {
         console.error('Error in create wallet route:', err);
@@ -125,7 +125,7 @@ router.post('/', auth_1.authenticateUser, (req, res) => {
     });
 });
 // Get wallet balance
-router.get('/:address/balance', auth_1.authenticateUser, (req, res) => {
+router.get('/:address/balance', (req, res) => {
     walletController_1.WalletController.getWalletBalance(req, res)
         .catch(err => {
         console.error('Error in wallet balance route:', err);

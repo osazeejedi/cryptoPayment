@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BalanceController = void 0;
 const balanceService_1 = require("../services/balanceService");
+const blockchainService_1 = require("../services/blockchainService");
 class BalanceController {
     static async getBalance(req, res) {
         try {
@@ -13,7 +14,7 @@ class BalanceController {
             }
             // If token_address is provided, get token balance
             if (token_address) {
-                const tokenBalance = await balanceService_1.BalanceService.getTokenBalance(wallet_address.toString(), token_address.toString());
+                const tokenBalance = await blockchainService_1.BlockchainService.getBalance(wallet_address.toString(), token_address.toString());
                 res.status(200).json({
                     status: 'success',
                     wallet_address: wallet_address.toString(),

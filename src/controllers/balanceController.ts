@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { BalanceService } from '../services/balanceService';
+import { BlockchainService } from '../services/blockchainService';
 
 export class BalanceController {
   static async getBalance(req: Request, res: Response): Promise<void> {
@@ -14,7 +15,7 @@ export class BalanceController {
       
       // If token_address is provided, get token balance
       if (token_address) {
-        const tokenBalance = await BalanceService.getTokenBalance(
+        const tokenBalance = await BlockchainService.getBalance(
           wallet_address.toString(),
           token_address.toString()
         );

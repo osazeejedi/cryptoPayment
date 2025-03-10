@@ -12,7 +12,7 @@ export class BalanceService {
     try {
       // Validate the wallet address
       if (!web3.utils.isAddress(walletAddress)) {
-        throw new Error('Invalid Ethereum address');
+        throw new Error('Invalid Ethereum address: check again');
       }
       
       // Get balance in Wei

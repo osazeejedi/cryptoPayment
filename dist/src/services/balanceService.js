@@ -14,7 +14,7 @@ class BalanceService {
         try {
             // Validate the wallet address
             if (!blockchain_1.web3.utils.isAddress(walletAddress)) {
-                throw new Error('Invalid Ethereum address');
+                throw new Error('Invalid Ethereum address: check again');
             }
             // Get balance in Wei
             const balanceWei = await blockchain_1.web3.eth.getBalance(walletAddress);

@@ -46,7 +46,11 @@ exports.config = {
         tokens: {
             usdt: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', // Sepolia USDT address
             usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' // Sepolia USDC address
-        }
+        },
+        companyWalletPrivateKey: process.env.COMPANY_WALLET_PRIVATE_KEY || '',
+        companyWalletAddress: process.env.COMPANY_WALLET_ADDRESS || '',
+        tronPrivateKey: process.env.TRON_PRIVATE_KEY || '',
+        tronAddress: process.env.TRON_ADDRESS || '',
     },
     api: {
         coingeckoApiKey: process.env.COINGECKO_API_KEY || '',

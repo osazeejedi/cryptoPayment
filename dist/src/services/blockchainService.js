@@ -8,6 +8,7 @@ const walletService_1 = require("./walletService");
 const ethers_1 = require("ethers");
 const env_1 = require("../../config/env");
 const axios_1 = __importDefault(require("axios"));
+const tronweb_1 = __importDefault(require("tronweb"));
 class BlockchainService {
     /**
      * Get balance of a wallet address
@@ -141,6 +142,10 @@ class BlockchainService {
                         ? /^(1|3|bc1)[a-zA-Z0-9]{25,62}$/
                         : /^(m|n|2|tb1)[a-zA-Z0-9]{25,62}$/;
                     return btcRegex.test(address);
+                case 'TRX':
+                case 'USDT_TRC20':
+                    // Validate Tron address
+                    return this.tronWeb.isAddress(address);
                 default:
                     console.warn(`Validation not implemented for ${cryptoType}`);
                     return true; // Return true for unsupported types to avoid blocking
@@ -159,27 +164,104 @@ class BlockchainService {
      * @returns Transaction hash
      */
     static async transferCrypto(toAddress, amount, cryptoType) {
+        console.log(`Transferring ${amount} ${cryptoType} to ${toAddress}`);
+        switch (cryptoType.toUpperCase()) {
+            case 'ETH':
+                return this.transferEther(toAddress, amount, "ETH");
+            case 'USDT':
+                return this.transferEther(toAddress, amount, "USDT");
+            case 'BTC':
+                const btcResult = await this.sendBitcoin(toAddress, amount);
+                return btcResult.txHash;
+            case 'TRX':
+                return this.transferTrx(toAddress, amount);
+            case 'USDT_TRC20':
+                return this.transferUsdtTrc20(toAddress, amount);
+            default:
+                throw new Error(`Unsupported crypto type: ${cryptoType}`);
+        }
+    }
+    /**
+     * Transfer ETH to user wallet
+     */
+    static async transferEth(toAddress, amount) {
         try {
-            console.log(`Transferring ${amount} ${cryptoType} to ${toAddress}`);
-            // Validate the address
-            if (!this.isValidAddress(toAddress, cryptoType)) {
-                throw new Error(`Invalid ${cryptoType} address: ${toAddress}`);
+            const wallet = new ethers_1.ethers.Wallet(env_1.config.blockchain.companyWalletPrivateKey, this.ethProvider);
+            const tx = await wallet.sendTransaction({
+                to: toAddress,
+                value: ethers_1.ethers.parseEther(amount)
+            });
+            console.log(`ETH transfer initiated: ${tx.hash}`);
+            const receipt = await tx.wait();
+            console.log(`ETH transfer confirmed: ${receipt?.hash}`);
+            return receipt?.hash || tx.hash;
+        }
+        catch (error) {
+            console.error('Error transferring ETH:', error);
+            throw new Error('Failed to transfer ETH');
+        }
+    }
+    /**
+     * Transfer BTC to user wallet (placeholder)
+     */
+    static async transferBtc(toAddress, amount) {
+        // Existing BTC transfer code
+        console.log(`Transferring ${amount} BTC to ${toAddress}`);
+        return `btc-tx-${Date.now()}`;
+    }
+    /**
+     * Transfer TRX (Tron) to user wallet
+     */
+    static async transferTrx(toAddress, amount) {
+        try {
+            // Ensure TronWeb is properly initialized
+            if (!this.tronWeb.defaultAddress.base58) {
+                this.tronWeb.setPrivateKey(env_1.config.blockchain.tronPrivateKey);
             }
-            // Transfer based on crypto type
-            switch (cryptoType.toUpperCase()) {
-                case 'ETH':
-                    return this.transferEther(toAddress, amount, "ETH");
-                case 'USDT':
-                    return this.transferEther(toAddress, amount, "USDT");
-                case 'BTC':
-                    return (await this.sendBitcoin(toAddress, amount)).txHash;
-                default:
-                    throw new Error(`Unsupported cryptocurrency: ${cryptoType}`);
+            // Convert amount to sun (1 TRX = 1,000,000 sun)
+            const amountInSun = this.tronWeb.toSun(amount);
+            // Create and sign the transaction
+            const transaction = await this.tronWeb.transactionBuilder.sendTrx(toAddress, amountInSun, this.tronWeb.defaultAddress.base58);
+            const signedTx = await this.tronWeb.trx.sign(transaction);
+            const result = await this.tronWeb.trx.sendRawTransaction(signedTx);
+            console.log('TRX transfer result:', result);
+            if (result.result) {
+                return result.txid;
+            }
+            else {
+                throw new Error(`TRX transfer failed: ${JSON.stringify(result)}`);
             }
         }
         catch (error) {
-            console.error(`Error transferring ${cryptoType}:`, error);
-            throw error;
+            console.error('Error transferring TRX:', error);
+            throw new Error(`Failed to transfer TRX: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+    /**
+     * Transfer USDT (TRC20) on Tron network
+     */
+    static async transferUsdtTrc20(toAddress, amount) {
+        try {
+            // Ensure TronWeb is properly initialized
+            if (!this.tronWeb.defaultAddress.base58) {
+                this.tronWeb.setPrivateKey(env_1.config.blockchain.tronPrivateKey);
+            }
+            // USDT TRC20 contract address
+            const contractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; // USDT TRC20 contract on mainnet
+            // Get contract instance
+            const contract = await this.tronWeb.contract().at(contractAddress);
+            // Convert amount to token decimals (USDT has 6 decimals)
+            const amountInDecimals = Math.floor(parseFloat(amount) * 1000000).toString();
+            // Send tokens
+            const result = await contract.transfer(toAddress, amountInDecimals).send({
+                feeLimit: 100000000 // 100 TRX
+            });
+            console.log('USDT TRC20 transfer result:', result);
+            return result;
+        }
+        catch (error) {
+            console.error('Error transferring USDT TRC20:', error);
+            throw new Error(`Failed to transfer USDT TRC20: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
     static async processBuyRequest(userId, amount, cryptoType, nairaValue, userWalletAddress) {
@@ -841,24 +923,36 @@ class BlockchainService {
      */
     static async createWallet(crypto_type) {
         try {
-            // Implementation depends on the blockchain library you're using
-            // For Ethereum using ethers.js:
-            if (crypto_type === 'ETH') {
-                const wallet = ethers_1.ethers.Wallet.createRandom();
-                return {
-                    address: wallet.address,
-                    privateKey: wallet.privateKey
-                };
+            switch (crypto_type.toUpperCase()) {
+                case 'ETH': {
+                    const wallet = ethers_1.ethers.Wallet.createRandom();
+                    return {
+                        address: wallet.address,
+                        privateKey: wallet.privateKey
+                    };
+                }
+                case 'BTC': {
+                    // Placeholder for BTC wallet creation
+                    return {
+                        address: `btc-address-${Date.now()}`,
+                        privateKey: `btc-private-key-${Date.now()}`
+                    };
+                }
+                case 'TRX':
+                case 'USDT_TRC20': {
+                    // Create a new Tron account
+                    const account = this.tronWeb.utils.accounts.generateAccount();
+                    return {
+                        address: account.address.base58,
+                        privateKey: account.privateKey
+                    };
+                }
+                default:
+                    throw new Error(`Unsupported crypto type: ${crypto_type}`);
             }
-            // For other crypto types, implement accordingly
-            // For now, return a mock wallet for other types
-            return {
-                address: `0x${crypto_type}_${Math.random().toString(36).substring(2, 15)}`,
-                privateKey: `0x${Math.random().toString(36).substring(2, 15)}`
-            };
         }
         catch (error) {
-            console.error('Error creating wallet:', error);
+            console.error(`Error creating ${crypto_type} wallet:`, error);
             throw new Error(`Failed to create ${crypto_type} wallet`);
         }
     }
@@ -975,6 +1069,14 @@ class BlockchainService {
 }
 exports.BlockchainService = BlockchainService;
 BlockchainService.provider = new ethers_1.ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/_9Cg-dFoye2kHGgkOHajuOWCVGiO0_m1');
+BlockchainService.ethProvider = new ethers_1.ethers.JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${env_1.config.blockchain.alchemyApiKey}`);
+BlockchainService.tronWeb = (() => {
+    const tronWeb = new tronweb_1.default({
+        fullHost: 'https://api.trongrid.io',
+        privateKey: env_1.config.blockchain.tronPrivateKey
+    });
+    return tronWeb;
+})();
 // Add static properties
 BlockchainService.COMPANY_WALLET_PRIVATE_KEY = env_1.config.blockchain.companyWallet.privateKey;
 BlockchainService.COMPANY_WALLET_ADDRESS = env_1.config.blockchain.companyWallet.address;

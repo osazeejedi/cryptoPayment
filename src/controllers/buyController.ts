@@ -9,6 +9,35 @@ import { handleError } from '../utils/errorHandler';
 import { AuthenticatedRequest } from '../types/express';
 import { supabase } from '../../config/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { VirtualAccountService } from '../services/virtualAccountService';
+import { PaymentNotificationService } from '../services/paymentNotificationService';
+
+interface WebhookPayload {
+  event: string;
+  data: {
+    reference: string;
+    payment_reference: string;
+    currency: string;
+    amount: number;
+    fee: number;
+    status: string;
+    virtual_bank_account_details: {
+      payer_bank_account: {
+        account_name: string;
+        account_number: string;
+        bank_name: string;
+      };
+      virtual_bank_account: {
+        account_name: string;
+        account_number: string;
+        account_reference: string;
+        bank_name: string;
+        permanent: boolean;
+      };
+    };
+    transaction_date: string;
+  };
+}
 
 export class BuyController {
   static async buyRequest(req: Request, res: Response): Promise<void> {
@@ -280,72 +309,62 @@ export class BuyController {
 
   
   /**
-   * Process payment webhook
+   * Process virtual account webhook
    */
   static async processPaymentWebhook(req: Request, res: Response): Promise<void> {
     try {
-      //console.log('Webhook received:', JSON.stringify(req.body, null, 2));
-      //console.log('Headers:', JSON.stringify(req.headers, null, 2));
-      //console.log(req)
-      const { event, data } = req.body;
-      
-      // Temporarily bypass signature verification
-      // const signature = req.headers['x-korapay-signature'];
-      // if (!signature || !KorapayService.verifyWebhook(req)) {
-      //   console.error('Invalid webhook signature');
-      //   res.status(401).json({
-      //     status: 'error',
-      //     message: 'Invalid webhook signature'
-      //   });
-      //   return;
-      // }
-      
-      // Check if this is a successful payment
-      if (event !== 'charge.success' || data.status !== 'success') {
-        console.log(`Webhook event ${event} with status ${data.status} - not processing`);
+      console.log('\n=== KORAPAY WEBHOOK RECEIVED ===');
+      console.log('Headers:', {
+        'content-type': req.headers['content-type'],
+        'x-korapay-signature': req.headers['x-korapay-signature']
+      });
+      console.log('Body:', JSON.stringify(req.body, null, 2));
+
+      const payload = req.body as WebhookPayload;
+
+      // Check if it's a successful charge
+      if (payload.event === 'charge.success' && payload.data.status === 'success') {
+        console.log('\n=== SUCCESSFUL PAYMENT RECEIVED ===');
+        console.log('Amount:', payload.data.amount);
+        console.log('From:', payload.data.virtual_bank_account_details.payer_bank_account.account_name);
+        console.log('Reference:', payload.data.reference);
+        console.log('Date:', payload.data.transaction_date);
+
+        // Store payment notification
+        PaymentNotificationService.storePayment({
+          reference: payload.data.reference,
+          amount: payload.data.amount,
+          currency: payload.data.currency,
+          status: payload.data.status,
+          payerName: payload.data.virtual_bank_account_details.payer_bank_account.account_name,
+          accountReference: payload.data.virtual_bank_account_details.virtual_bank_account.account_reference,
+          date: payload.data.transaction_date,
+          timestamp: Date.now()
+        });
+
+        // Return success response
         res.status(200).json({
           status: 'success',
-          message: 'Webhook received but not processed'
+          message: 'Payment received successfully',
+          reference: payload.data.reference
         });
         return;
       }
+
+      // Log and accept other events
+      console.log('\n=== Unhandled Event Type ===');
+      console.log('Event:', payload.event);
       
-      // Extract and validate metadata
-      const { crypto_type, wallet_address, crypto_amount } = data.metadata || {};
-      if (!crypto_type || !wallet_address) {
-        console.error('Missing required metadata:', data.metadata);
-        res.status(200).json({
-          status: 'success',
-          message: 'Webhook received but not processed'
-        });
-        return;
-      }
-      
-      // Use crypto_amount from metadata if available, otherwise use data.amount
-      const amount = crypto_amount || data.amount;
-      
-      console.log(`Processing crypto transfer: ${amount} ${crypto_type} to ${wallet_address}`);
-      
-      // Initiate blockchain transfer
-      const txHash = await BlockchainService.transferCrypto(
-        wallet_address,
-        amount,
-        crypto_type
-      );
-      
-      console.log(`Crypto transfer successful. Transaction hash: ${txHash}`);
-      
-      // Return success
       res.status(200).json({
         status: 'success',
-        message: 'Payment processed successfully',
-        data: { txHash }
+        message: 'Webhook received and logged'
       });
+
     } catch (error) {
-      console.error('Webhook processing error:', error);
+      console.error('Webhook Error:', error);
       res.status(500).json({
         status: 'error',
-        message: 'Failed to process payment webhook'
+        message: 'Internal server error'
       });
     }
   }
@@ -716,6 +735,181 @@ export class BuyController {
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to transfer crypto'
+      });
+    }
+  }
+
+  /**
+   * Create permanent virtual account
+   */
+  static async createVirtualAccount(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        account_name,
+        bank_code,
+        customer_name,
+        customer_email,
+        bvn
+      } = req.body;
+
+      // Validate required fields
+      if (!account_name || !bank_code || !customer_name || !customer_email || !bvn) {
+        res.status(400).json({
+          success: false,
+          message: 'All fields are required: account_name, bank_code, customer_name, customer_email, bvn'
+        });
+        return;
+      }
+
+      // Create virtual account
+      const virtualAccount = await VirtualAccountService.createVirtualAccount({
+        account_name,
+        bank_code,
+        customer_name,
+        customer_email,
+        bvn
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Virtual account created successfully',
+        data: virtualAccount
+      });
+    } catch (error) {
+      console.error('Error creating virtual account:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create virtual account'
+      });
+    }
+  }
+
+  /**
+   * Test webhook endpoint
+   */
+  static async testWebhook(req: Request, res: Response): Promise<void> {
+    res.status(200).json({
+      status: 'success',
+      message: 'Webhook endpoint is working',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Manually send crypto after payment
+   */
+  static async manualCryptoTransfer(req: Request, res: Response): Promise<void> {
+    try {
+      const { paymentReference, walletAddress, cryptoType, amount } = req.body;
+      
+      if (!paymentReference || !walletAddress || !cryptoType || !amount) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Missing required parameters'
+        });
+        return;
+      }
+      
+      console.log('\n=== MANUAL CRYPTO TRANSFER INITIATED ===');
+      console.log('Payment Reference:', paymentReference);
+      console.log('Wallet Address:', walletAddress);
+      console.log('Crypto Type:', cryptoType);
+      console.log('Amount:', amount);
+      
+      // Transfer crypto
+      const txHash = await BlockchainService.transferCrypto(
+        walletAddress,
+        amount,
+        cryptoType
+      );
+      
+      console.log('Crypto transfer successful:', txHash);
+      
+      // Update payment status in database
+      // await DatabaseService.updatePaymentStatus(paymentReference, 'completed', txHash);
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Crypto transferred successfully',
+        txHash
+      });
+    } catch (error) {
+      console.error('Error in manual crypto transfer:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to transfer crypto'
+      });
+    }
+  }
+
+  /**
+   * Get recent payments
+   */
+  static async getRecentPayments(req: Request, res: Response): Promise<void> {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const payments = PaymentNotificationService.getRecentPayments(limit);
+      
+      res.status(200).json({
+        status: 'success',
+        data: payments
+      });
+    } catch (error) {
+      console.error('Error getting recent payments:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get recent payments'
+      });
+    }
+  }
+
+  /**
+   * Get payment by reference
+   */
+  static async getPaymentByReference(req: Request, res: Response): Promise<void> {
+    try {
+      const { reference } = req.params;
+      const payment = PaymentNotificationService.getPaymentByReference(reference);
+      
+      if (!payment) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Payment not found'
+        });
+        return;
+      }
+      
+      res.status(200).json({
+        status: 'success',
+        data: payment
+      });
+    } catch (error) {
+      console.error('Error getting payment:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get payment'
+      });
+    }
+  }
+
+  /**
+   * Poll for new payments
+   */
+  static async pollPayments(req: Request, res: Response): Promise<void> {
+    try {
+      const timestamp = req.query.since ? parseInt(req.query.since as string) : 0;
+      const payments = PaymentNotificationService.getPaymentsSince(timestamp);
+      
+      res.status(200).json({
+        status: 'success',
+        data: payments,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error polling payments:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to poll payments'
       });
     }
   }

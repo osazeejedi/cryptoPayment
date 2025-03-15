@@ -64,6 +64,15 @@ console.log('Mounting routes...');
 // Mount buy routes
 app.use('/api/buy', buyRoutes);
 
+// Add a root test endpoint
+app.get('/test', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Service is running' });

@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
+    "test:webhookvirtual": "ts-node test/manual/test-virtual-account.ts",
     "start": "node server.js",
     "dev": "ts-node src/server.ts",
     "build": "tsc && cp -r src/config/swagger.ts dist/src/config/ && cp server.js dist/",
@@ -67,6 +68,7 @@
     "pg": "^8.13.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "tronweb": "^6.0.1",
     "uuid": "^11.1.0",
     "web3": "^4.1.2",
     "winston": "^3.11.0"

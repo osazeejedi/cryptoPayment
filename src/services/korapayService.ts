@@ -298,14 +298,14 @@ export class KorapayService {
       const response = await axios.post(
         `${this.BASE_URL}/charges/initialize`,
         payload,
-        { 
+        {
           headers: {
             'Authorization': `Bearer ${this.SECRET_KEY}`,
             'Content-Type': 'application/json'
           } 
         }
       );
-
+      
       // Log successful response
       console.log('Korapay response status:', response.status);
       
@@ -471,10 +471,10 @@ export class KorapayService {
       
       // Prepare payload according to Korapay's expected structure
       const payload = {
-        destination: {
+          destination: {
           amount,
           currency: "NGN",
-          bank_account: {
+            bank_account: {
             account_number: payoutData.account_number,
             bank_code: payoutData.bank_code,
             account_name: payoutData.account_name,
@@ -635,61 +635,31 @@ export class KorapayService {
         console.error('Webhook verification failed: Missing signature');
         return false;
       }
-  
-      // Try different formats of the secret key
-      const secretKey = this.SECRET_KEY;
-      const cleanSecretKey = secretKey.replace(/^["']|["']$/g, '').trim();
-      
-      const payload = JSON.stringify(req.body);
-      console.log('Webhook payload length:', payload.length);
-      console.log('Signature header:', signature);
-      
-      // Try with original secret key
-      let hash = crypto
-        .createHmac('sha256', secretKey)
-        .update(payload)
-        .digest('hex');
-      
-      if (hash === signature) {
-        console.log('Signature verified with original key');
-        return true;
-      }
-      
-      // Try with cleaned secret key
-      hash = crypto
+
+      // Clean the secret key (remove any quotes or whitespace)
+      const cleanSecretKey = this.SECRET_KEY.replace(/^["']|["']$/g, '').trim();
+
+      // Use only the data field from the request body as per Korapay docs
+      const payload = JSON.stringify(req.body.data);
+
+      // Create hash using sha256
+      const hash = crypto
         .createHmac('sha256', cleanSecretKey)
         .update(payload)
         .digest('hex');
-      
-      if (hash === signature) {
-        console.log('Signature verified with cleaned key');
-        return true;
+
+      console.log('Webhook verification:', {
+        receivedSignature: signature,
+        calculatedHash: hash,
+        payloadLength: payload.length
+      });
+
+      if (hash !== signature) {
+        console.error('Webhook verification failed: Signature mismatch');
+        return false;
       }
-      
-      // Try with SHA512 instead of SHA256
-      hash = crypto
-        .createHmac('sha512', secretKey)
-        .update(payload)
-        .digest('hex');
-      
-      if (hash === signature) {
-        console.log('Signature verified with SHA512');
-        return true;
-      }
-      
-      // Try with cleaned key and SHA512
-      hash = crypto
-        .createHmac('sha512', cleanSecretKey)
-        .update(payload)
-        .digest('hex');
-      
-      if (hash === signature) {
-        console.log('Signature verified with cleaned key and SHA512');
-        return true;
-      }
-      
-      console.error('All signature verification attempts failed');
-      return false;
+
+      return true;
     } catch (error) {
       console.error('Webhook verification error:', error);
       return false;

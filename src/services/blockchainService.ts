@@ -7,7 +7,7 @@ import { IBlockchainProvider } from '../interfaces/blockchain';
 import { withCircuitBreaker } from '../utils/circuitBreakerDecorator';
 import { handleServiceError } from '../utils/serviceErrors';
 import axios from 'axios';
-import TronWeb from 'tronweb';
+const TronWeb = require('tronweb');
 
 // Add this interface near the top of the file
 interface IERC20Contract extends ethers.BaseContract {
@@ -49,13 +49,12 @@ export class BlockchainService {
     `https://eth-sepolia.g.alchemy.com/v2/${config.blockchain.alchemyApiKey}`
   );
   
-  private static tronWeb = (() => {
-    const tronWeb = new (TronWeb as any)({
-      fullHost: 'https://api.trongrid.io',
-      privateKey: config.blockchain.tronPrivateKey
-    });
-    return tronWeb;
-  })();
+  private static tronWeb = new TronWeb(
+    'https://api.trongrid.io',
+    'https://api.trongrid.io',
+    'https://api.trongrid.io',
+    config.blockchain.tronPrivateKey
+  );
   /**
    * Get balance of a wallet address
    */

@@ -8,7 +8,7 @@ const walletService_1 = require("./walletService");
 const ethers_1 = require("ethers");
 const env_1 = require("../../config/env");
 const axios_1 = __importDefault(require("axios"));
-const tronweb_1 = __importDefault(require("tronweb"));
+const TronWeb = require('tronweb');
 class BlockchainService {
     /**
      * Get balance of a wallet address
@@ -1070,13 +1070,7 @@ class BlockchainService {
 exports.BlockchainService = BlockchainService;
 BlockchainService.provider = new ethers_1.ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/_9Cg-dFoye2kHGgkOHajuOWCVGiO0_m1');
 BlockchainService.ethProvider = new ethers_1.ethers.JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${env_1.config.blockchain.alchemyApiKey}`);
-BlockchainService.tronWeb = (() => {
-    const tronWeb = new (tronweb_1.default)({
-        fullHost: 'https://api.trongrid.io',
-        privateKey: env_1.config.blockchain.tronPrivateKey
-    });
-    return tronWeb;
-})();
+BlockchainService.tronWeb = new TronWeb('https://api.trongrid.io', 'https://api.trongrid.io', 'https://api.trongrid.io', env_1.config.blockchain.tronPrivateKey);
 // Add static properties
 BlockchainService.COMPANY_WALLET_PRIVATE_KEY = env_1.config.blockchain.companyWallet.privateKey;
 BlockchainService.COMPANY_WALLET_ADDRESS = env_1.config.blockchain.companyWallet.address;

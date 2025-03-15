@@ -1071,7 +1071,7 @@ exports.BlockchainService = BlockchainService;
 BlockchainService.provider = new ethers_1.ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/_9Cg-dFoye2kHGgkOHajuOWCVGiO0_m1');
 BlockchainService.ethProvider = new ethers_1.ethers.JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${env_1.config.blockchain.alchemyApiKey}`);
 BlockchainService.tronWeb = (() => {
-    const tronWeb = new tronweb_1.default({
+    const tronWeb = new (tronweb_1.default)({
         fullHost: 'https://api.trongrid.io',
         privateKey: env_1.config.blockchain.tronPrivateKey
     });

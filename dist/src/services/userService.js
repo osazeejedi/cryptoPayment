@@ -95,6 +95,7 @@ class UserService {
             const ethWallet = await walletService_1.WalletService.createWalletForUser(userData.id, 'ETH', 'Default ETH Wallet');
             // Create default USDT wallet
             const usdtWallet = await walletService_1.WalletService.createWalletForUser(userData.id, 'USDT', 'Default USDT Wallet');
+            const trxWallet = await walletService_1.WalletService.createWalletForUser(userData.id, 'TRX', 'Default TRX Wallet');
             return {
                 user,
                 wallets: [
@@ -104,6 +105,10 @@ class UserService {
                     } : null,
                     usdtWallet ? {
                         ...usdtWallet,
+                        private_key: undefined // Don't expose private key
+                    } : null,
+                    trxWallet ? {
+                        ...trxWallet,
                         private_key: undefined // Don't expose private key
                     } : null
                 ].filter(Boolean)

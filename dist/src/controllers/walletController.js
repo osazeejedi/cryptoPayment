@@ -4,6 +4,7 @@ exports.WalletController = void 0;
 const blockchainService_1 = require("../services/blockchainService");
 const supabase_1 = require("../../config/supabase");
 const errorHandler_1 = require("../utils/errorHandler");
+const helper_1 = require("../utils/helper");
 class WalletController {
     /**
      * Get user's wallet information
@@ -11,32 +12,49 @@ class WalletController {
     static async getUserWallet(req, res) {
         try {
             const userId = req.user.id;
-            // Get wallet from database
-            const { data: wallet, error } = await supabase_1.supabase
+            // Get wallets from database
+            const { data: wallets, error } = await supabase_1.supabase
                 .from('wallets')
-                .select('address, created_at')
-                .eq('user_id', userId)
-                .single();
-            if (error || !wallet) {
+                .select('address, crypto_type, created_at')
+                .eq('user_id', userId);
+            if (error || !wallets || wallets.length === 0) {
                 res.status(404).json({
                     status: 'error',
-                    message: 'Wallet not found for this user'
+                    message: 'No wallets found for this user',
                 });
                 return;
             }
-            // Get wallet balance
-            const ethBalance = await blockchainService_1.BlockchainService.getBalance(wallet.address, 'ETH');
-            const btcBalance = await blockchainService_1.BlockchainService.getBalance(wallet.address, 'BTC');
+            // Fetch balances for each wallet based on crypto_type
+            const walletData = await Promise.all(wallets.map(async (wallet) => {
+                let balances = {};
+                if (wallet.crypto_type === 'TRX') {
+                    // Fetch TRX and TRC-20 token balances
+                    const usdtBalance = await blockchainService_1.BlockchainService.getTronsBalance(wallet.address, 'USDT');
+                    const wethBalance = await blockchainService_1.BlockchainService.getTronsBalance(wallet.address, 'WETH');
+                    balances = {
+                        USDT: usdtBalance,
+                        WETH: wethBalance,
+                    };
+                }
+                else {
+                    // Fetch ETH and BTC balances
+                    const ethBalance = await blockchainService_1.BlockchainService.getBalance(wallet.address, 'ETH');
+                    const btcBalance = await blockchainService_1.BlockchainService.getBalance(wallet.address, 'BTC');
+                    balances = {
+                        ETH: ethBalance,
+                        BTC: btcBalance,
+                    };
+                }
+                return {
+                    address: wallet.address,
+                    crypto_type: wallet.crypto_type,
+                    created_at: wallet.created_at,
+                    balances,
+                };
+            }));
             res.status(200).json({
                 status: 'success',
-                data: {
-                    address: wallet.address,
-                    created_at: wallet.created_at,
-                    balances: {
-                        ETH: ethBalance,
-                        BTC: btcBalance
-                    }
-                }
+                data: walletData,
             });
         }
         catch (error) {
@@ -84,11 +102,11 @@ class WalletController {
         try {
             const userId = req.user.id;
             // Additional security check - require password confirmation
-            const { password } = req.body;
-            if (!password) {
+            const { password, crypto_type } = req.body;
+            if (!password || !crypto_type) {
                 res.status(400).json({
                     status: 'error',
-                    message: 'Password confirmation required'
+                    message: 'Password confirmation and crypto_type are required',
                 });
                 return;
             }
@@ -101,7 +119,7 @@ class WalletController {
             if (userError || !user) {
                 res.status(401).json({
                     status: 'error',
-                    message: 'Authentication failed'
+                    message: 'Authentication failed',
                 });
                 return;
             }
@@ -110,28 +128,36 @@ class WalletController {
             if (!isPasswordValid) {
                 res.status(401).json({
                     status: 'error',
-                    message: 'Invalid password'
+                    message: 'Invalid password',
                 });
                 return;
             }
-            // Get wallet from database
-            const { data: wallet, error } = await supabase_1.supabase
+            // Get wallets from database
+            const { data: wallets, error } = await supabase_1.supabase
                 .from('wallets')
-                .select('private_key')
-                .eq('user_id', userId)
-                .single();
-            if (error || !wallet) {
+                .select('private_key, crypto_type')
+                .eq('user_id', userId);
+            if (error || !wallets || wallets.length === 0) {
                 res.status(404).json({
                     status: 'error',
-                    message: 'Wallet not found for this user'
+                    message: 'No wallets found for this user',
+                });
+                return;
+            }
+            // Find the wallet with the matching crypto_type
+            const wallet = wallets.find((w) => w.crypto_type === crypto_type);
+            if (!wallet) {
+                res.status(404).json({
+                    status: 'error',
+                    message: `No wallet found for crypto_type: ${crypto_type}`,
                 });
                 return;
             }
             res.status(200).json({
                 status: 'success',
                 data: {
-                    private_key: wallet.private_key
-                }
+                    private_key: (0, helper_1.decrypt)(wallet.private_key),
+                },
             });
         }
         catch (error) {

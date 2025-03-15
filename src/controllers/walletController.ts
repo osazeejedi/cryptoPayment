@@ -5,6 +5,7 @@ import { BlockchainService } from '../services/blockchainService';
 import { supabase } from '../../config/supabase';
 import { AuthenticatedRequest } from '../types/express';
 import { handleError } from '../utils/errorHandler';
+import { decrypt } from '../utils/helper';
 
 export class WalletController {
   /**
@@ -13,36 +14,56 @@ export class WalletController {
   static async getUserWallet(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const userId = req.user.id;
-      
-      // Get wallet from database
-      const { data: wallet, error } = await supabase
+  
+      // Get wallets from database
+      const { data: wallets, error } = await supabase
         .from('wallets')
-        .select('address, created_at')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error || !wallet) {
+        .select('address, crypto_type, created_at')
+        .eq('user_id', userId);
+  
+      if (error || !wallets || wallets.length === 0) {
         res.status(404).json({
           status: 'error',
-          message: 'Wallet not found for this user'
+          message: 'No wallets found for this user',
         });
         return;
       }
-      
-      // Get wallet balance
-      const ethBalance = await BlockchainService.getBalance(wallet.address, 'ETH');
-      const btcBalance = await BlockchainService.getBalance(wallet.address, 'BTC');
-      
+  
+      // Fetch balances for each wallet based on crypto_type
+      const walletData = await Promise.all(
+        wallets.map(async (wallet) => {
+          let balances: { [key: string]: string } = {};
+  
+          if (wallet.crypto_type === 'TRX') {
+            // Fetch TRX and TRC-20 token balances
+            const usdtBalance = await BlockchainService.getTronsBalance(wallet.address, 'USDT');
+            const wethBalance = await BlockchainService.getTronsBalance(wallet.address, 'WETH');
+            balances = {
+              USDT: usdtBalance,
+              WETH: wethBalance,
+            };
+          } else {
+            // Fetch ETH and BTC balances
+            const ethBalance = await BlockchainService.getBalance(wallet.address, 'ETH');
+            const btcBalance = await BlockchainService.getBalance(wallet.address, 'BTC');
+            balances = {
+              ETH: ethBalance,
+              BTC: btcBalance,
+            };
+          }
+  
+          return {
+            address: wallet.address,
+            crypto_type: wallet.crypto_type,
+            created_at: wallet.created_at,
+            balances,
+          };
+        })
+      );
+  
       res.status(200).json({
         status: 'success',
-        data: {
-          address: wallet.address,
-          created_at: wallet.created_at,
-          balances: {
-            ETH: ethBalance,
-            BTC: btcBalance
-          }
-        }
+        data: walletData,
       });
     } catch (error) {
       handleError(error, res, 'Failed to get user wallet');
@@ -92,62 +113,72 @@ export class WalletController {
   static async getWalletPrivateKey(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user.id;
-      
+  
       // Additional security check - require password confirmation
-      const { password } = req.body;
-      if (!password) {
+      const { password, crypto_type } = req.body;
+      if (!password || !crypto_type) {
         res.status(400).json({
           status: 'error',
-          message: 'Password confirmation required'
+          message: 'Password confirmation and crypto_type are required',
         });
         return;
       }
-      
+  
       // Verify password
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('password_hash')
         .eq('id', userId)
         .single();
-      
+  
       if (userError || !user) {
         res.status(401).json({
           status: 'error',
-          message: 'Authentication failed'
+          message: 'Authentication failed',
         });
         return;
       }
-      
+  
       // Verify password (implement your password verification logic)
       const isPasswordValid = await verifyPassword(password, user.password_hash);
       if (!isPasswordValid) {
         res.status(401).json({
           status: 'error',
-          message: 'Invalid password'
+          message: 'Invalid password',
         });
         return;
       }
-      
-      // Get wallet from database
-      const { data: wallet, error } = await supabase
+  
+      // Get wallets from database
+      const { data: wallets, error } = await supabase
         .from('wallets')
-        .select('private_key')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error || !wallet) {
+        .select('private_key, crypto_type')
+        .eq('user_id', userId);
+  
+      if (error || !wallets || wallets.length === 0) {
         res.status(404).json({
           status: 'error',
-          message: 'Wallet not found for this user'
+          message: 'No wallets found for this user',
         });
         return;
       }
-      
+  
+      // Find the wallet with the matching crypto_type
+      const wallet = wallets.find((w) => w.crypto_type === crypto_type);
+  
+      if (!wallet) {
+        res.status(404).json({
+          status: 'error',
+          message: `No wallet found for crypto_type: ${crypto_type}`,
+        });
+        return;
+      }
+  
       res.status(200).json({
         status: 'success',
         data: {
-          private_key: wallet.private_key
-        }
+          private_key: decrypt(wallet.private_key),
+        },
       });
     } catch (error) {
       handleError(error, res, 'Failed to get wallet private key');

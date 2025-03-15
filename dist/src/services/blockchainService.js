@@ -8,25 +8,30 @@ const walletService_1 = require("./walletService");
 const ethers_1 = require("ethers");
 const env_1 = require("../../config/env");
 const axios_1 = __importDefault(require("axios"));
+const tronweb_1 = require("tronweb");
+// Initialize TronWeb
+const tronWeb = new tronweb_1.TronWeb({
+    fullHost: "https://api.trongrid.io",
+});
 class BlockchainService {
     /**
      * Get balance of a wallet address
      */
-    static async getBalance(address, cryptoType = 'ETH') {
+    static async getBalance(address, cryptoType = "ETH") {
         try {
             // For ETH balance
-            if (cryptoType === 'ETH') {
+            if (cryptoType === "ETH") {
                 const balance = await this.provider.getBalance(address);
                 return ethers_1.ethers.formatEther(balance);
             }
             // For BTC (mock implementation since we're not connecting to Bitcoin network)
-            if (cryptoType === 'BTC') {
-                return '0.00000000'; // Placeholder BTC balance
+            if (cryptoType === "BTC") {
+                return "0.00000000"; // Placeholder BTC balance
             }
             // For ERC20 tokens
             const tokenAddresses = {
-                'USDT': '0xdAC17F958D2ee523a2206206994597C13D831ec7', // Mainnet USDT
-                'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' // Mainnet USDC
+                USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7", // Mainnet USDT
+                USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // Mainnet USDC
             };
             if (tokenAddresses[cryptoType]) {
                 // ERC20 token ABI (minimal for balance checking)
@@ -44,7 +49,7 @@ class BlockchainService {
                         name: "decimals",
                         outputs: [{ name: "", type: "uint8" }],
                         type: "function",
-                    }
+                    },
                 ];
                 const tokenContract = new ethers_1.ethers.Contract(tokenAddresses[cryptoType], minABI, this.provider);
                 const balance = await tokenContract.balanceOf(address);
@@ -54,8 +59,31 @@ class BlockchainService {
             throw new Error(`Unsupported cryptocurrency type: ${cryptoType}`);
         }
         catch (error) {
-            console.error('[blockchain] Error:', error);
+            console.error("[blockchain] Error:", error);
             throw new Error(`BlockchainError: Blockchain operation failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    static async getTronsBalance(tronAddress, coin) {
+        try {
+            const TRC20_CONTRACTS = {
+                USDT: "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj", // USDT TRC-20 contract address
+                WETH: "TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9", // WETH TRC-20 contract address
+            };
+            // Get the contract address for the specified coin
+            const contractAddress = TRC20_CONTRACTS[coin];
+            if (!contractAddress) {
+                throw new Error(`Unsupported coin: ${coin}`);
+            }
+            // Get the contract instance
+            const contract = await tronWeb.contract().at(contractAddress);
+            // Fetch the balance
+            const balance = await contract.balanceOf(tronAddress).call();
+            // Convert the balance from SUN to human-readable format (USDT/WETH have 6 decimal places)
+            return tronWeb.fromSun(balance).toString();
+        }
+        catch (err) {
+            console.error(`Error fetching ${coin} balance:`, err);
+            return "0"; // Return '0' in case of an error
         }
     }
     static async verifyTransaction(txHash, cryptoType) {
@@ -79,14 +107,14 @@ class BlockchainService {
             return false;
         }
     }
-    static async estimateGas(to, amount, cryptoType = 'ETH') {
+    static async estimateGas(to, amount, cryptoType = "ETH") {
         try {
             // Use getEthersProvider instead of this.provider
             const ethersProvider = this.getEthersProvider(cryptoType);
-            if (cryptoType === 'ETH') {
+            if (cryptoType === "ETH") {
                 const gasEstimate = await ethersProvider.estimateGas({
                     to,
-                    value: ethers_1.ethers.parseEther(amount)
+                    value: ethers_1.ethers.parseEther(amount),
                 });
                 return gasEstimate.toString();
             }
@@ -102,14 +130,14 @@ class BlockchainService {
         }
         catch (error) {
             console.error(`Error estimating gas for ${cryptoType} transfer:`, error);
-            throw new Error(`Failed to estimate gas: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Failed to estimate gas: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     // Provider method - renamed to avoid confusion
     static getEthersProvider(cryptoType) {
         try {
             // For testing, use Sepolia testnet
-            const network = 'Mainnet';
+            const network = "Mainnet";
             // Use Alchemy for testnet
             const alchemyUrl = `https://eth-mainnet.g.alchemy.com/v2/_9Cg-dFoye2kHGgkOHajuOWCVGiO0_m1`;
             console.log(`Using ${network} testnet with Alchemy`);
@@ -119,8 +147,8 @@ class BlockchainService {
             return provider;
         }
         catch (error) {
-            console.error('Error creating provider:', error);
-            throw new Error('Failed to create blockchain provider');
+            console.error("Error creating provider:", error);
+            throw new Error("Failed to create blockchain provider");
         }
     }
     /**
@@ -132,12 +160,13 @@ class BlockchainService {
     static async isValidAddress(address, cryptoType) {
         try {
             switch (cryptoType.toUpperCase()) {
-                case 'ETH':
+                case "ETH":
                     return await walletService_1.WalletService.verifyAddress(address);
-                    ;
-                case 'BTC':
+                case "TRX":
+                    return await walletService_1.WalletService.verifyTronAddress(address);
+                case "BTC":
                     // Basic Bitcoin address validation (this is a simplified check)
-                    const btcRegex = env_1.config.blockchain.network === 'mainnet'
+                    const btcRegex = env_1.config.blockchain.network === "mainnet"
                         ? /^(1|3|bc1)[a-zA-Z0-9]{25,62}$/
                         : /^(m|n|2|tb1)[a-zA-Z0-9]{25,62}$/;
                     return btcRegex.test(address);
@@ -167,12 +196,14 @@ class BlockchainService {
             }
             // Transfer based on crypto type
             switch (cryptoType.toUpperCase()) {
-                case 'ETH':
+                case "ETH":
                     return this.transferEther(toAddress, amount, "ETH");
-                case 'USDT':
+                case "USDT":
                     return this.transferEther(toAddress, amount, "USDT");
-                case 'BTC':
+                case "BTC":
                     return (await this.sendBitcoin(toAddress, amount)).txHash;
+                case 'TRX':
+                    return this.transferTRX(toAddress, amount);
                 default:
                     throw new Error(`Unsupported cryptocurrency: ${cryptoType}`);
             }
@@ -218,7 +249,7 @@ class BlockchainService {
             const ethersProvider = this.getEthersProvider(cryptoType);
             const wallet = new ethers_1.ethers.Wallet(fromPrivateKey, ethersProvider);
             // Handle different crypto types
-            if (cryptoType === 'ETH') {
+            if (cryptoType === "ETH") {
                 // ETH transfer logic
                 const balance = await ethersProvider.getBalance(wallet.address);
                 const amountWei = ethers_1.ethers.parseEther(amount);
@@ -235,25 +266,25 @@ class BlockchainService {
                     gasLimit: gasLimit,
                     maxFeePerGas: gasPrice.maxFeePerGas,
                     maxPriorityFeePerGas: gasPrice.maxPriorityFeePerGas,
-                    nonce: await ethersProvider.getTransactionCount(wallet.address)
+                    nonce: await ethersProvider.getTransactionCount(wallet.address),
                 };
                 // Sign and send the transaction
-                console.log('Sending ETH transaction with the following details:', tx);
+                console.log("Sending ETH transaction with the following details:", tx);
                 const transaction = await wallet.sendTransaction(tx);
                 console.log(`Transaction sent! Hash: ${transaction.hash}`);
-                console.log('Waiting for transaction confirmation...');
+                console.log("Waiting for transaction confirmation...");
                 // Wait for the transaction to be mined
                 const receipt = await transaction.wait();
                 console.log(`Transaction confirmed in block ${receipt?.blockNumber}`);
                 return transaction.hash;
             }
-            else if (cryptoType === 'USDT') {
+            else if (cryptoType === "USDT") {
                 // USDT (ERC-20) transfer logic
-                const tokenContract = this.getTokenContract('USDT');
+                const tokenContract = this.getTokenContract("USDT");
                 const connectedContract = tokenContract.connect(wallet);
                 // Get token decimals
-                const decimals = await this.getTokenDecimals('USDT');
-                //Get Nonce 
+                const decimals = await this.getTokenDecimals("USDT");
+                //Get Nonce
                 const nonce = await ethersProvider.getTransactionCount(wallet.address);
                 // Convert amount to token units
                 const tokenAmount = ethers_1.ethers.parseUnits(amount, decimals);
@@ -265,24 +296,51 @@ class BlockchainService {
                 // Estimate gas for token transfer
                 const gasEstimate = await connectedContract.estimateGas.transfer(toAddress, tokenAmount);
                 // Add 20% buffer to gas estimate
-                const gasLimit = gasEstimate + (gasEstimate / 5n);
+                const gasLimit = gasEstimate + gasEstimate / 5n;
                 // Send token transfer transaction
                 console.log(`Sending ${amount} ${cryptoType} to ${toAddress} with gas limit ${gasLimit}`);
                 const transaction = await connectedContract.transfer(toAddress, tokenAmount, { gasLimit });
                 console.log(`Transaction sent! Hash: ${transaction.hash}`);
-                console.log('Waiting for transaction confirmation...');
+                console.log("Waiting for transaction confirmation...");
                 // Wait for the transaction to be mined
                 const receipt = await transaction.wait();
                 console.log(`Transaction confirmed in block ${receipt?.blockNumber}`);
                 return transaction.hash;
+                return transaction.hash;
+            }
+            else if (cryptoType === "TRX") {
+                // TRX transfer logic
+                const TronWeb = require('tronweb');
+                const tronWeb = new TronWeb({
+                    fullHost: 'https://api.trongrid.io', // Tron network node
+                    privateKey: fromPrivateKey, // Use the provided private key
+                });
+                // Convert amount to sun (1 TRX = 1,000,000 sun)
+                const amountInSun = tronWeb.toSun(amount);
+                // Get sender's balance
+                const balanceInSun = await tronWeb.trx.getBalance(tronWeb.address.fromPrivateKey(fromPrivateKey));
+                console.log('Sender balance:', tronWeb.fromSun(balanceInSun), 'TRX');
+                // Check if sender has enough balance
+                if (balanceInSun < amountInSun) {
+                    throw new Error(`Insufficient balance. Available: ${tronWeb.fromSun(balanceInSun)} TRX, Required: ${amount} TRX`);
+                }
+                // Send TRX transaction
+                console.log('Sending TRX transaction...');
+                const transaction = await tronWeb.trx.sendTransaction(toAddress, amountInSun, fromPrivateKey);
+                console.log('Transaction sent:', transaction.txid);
+                console.log('Waiting for transaction confirmation...');
+                // Wait for the transaction to be confirmed
+                const receipt = await tronWeb.trx.getTransactionInfo(transaction.txid);
+                console.log('Transaction confirmed:', receipt);
+                return transaction.txid;
             }
             else {
                 throw new Error(`Unsupported cryptocurrency: ${cryptoType}`);
             }
         }
         catch (error) {
-            console.error('Error sending crypto:', error);
-            throw new Error(`Failed to send ${cryptoType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error sending crypto:", error);
+            throw new Error(`Failed to send ${cryptoType}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -296,8 +354,8 @@ class BlockchainService {
             return wallet.address;
         }
         catch (error) {
-            console.error('Error getting address from private key:', error);
-            throw new Error('Invalid private key');
+            console.error("Error getting address from private key:", error);
+            throw new Error("Invalid private key");
         }
     }
     /**
@@ -315,25 +373,25 @@ class BlockchainService {
             // Get transaction details from the blockchain
             const txReceipt = await ethersProvider.getTransactionReceipt(transactionHash);
             if (!txReceipt) {
-                console.error('Transaction not found');
+                console.error("Transaction not found");
                 return false;
             }
             // Verify the transaction is confirmed
             if (!txReceipt.blockNumber) {
-                console.error('Transaction not confirmed yet');
+                console.error("Transaction not confirmed yet");
                 return false;
             }
             // Get the full transaction
             const tx = await ethersProvider.getTransaction(transactionHash);
-            if (cryptoType === 'ETH') {
+            if (cryptoType === "ETH") {
                 // For ETH, check if the recipient matches
                 return tx?.to?.toLowerCase() === walletAddress.toLowerCase();
             }
-            else if (cryptoType === 'USDT') {
+            else if (cryptoType === "USDT") {
                 // For USDT, we need to decode the transaction data to verify the recipient and amount
                 // This is a simplified check - just verifying it's a transaction to the USDT contract
-                const tokenContract = this.getTokenContract('USDT');
-                const contractAddress = typeof tokenContract.target === 'string'
+                const tokenContract = this.getTokenContract("USDT");
+                const contractAddress = typeof tokenContract.target === "string"
                     ? tokenContract.target.toLowerCase()
                     : tokenContract.target.toString().toLowerCase();
                 return tx?.to?.toLowerCase() === contractAddress;
@@ -341,7 +399,7 @@ class BlockchainService {
             return false;
         }
         catch (error) {
-            console.error('Error validating transaction:', error);
+            console.error("Error validating transaction:", error);
             return false;
         }
     }
@@ -354,8 +412,8 @@ class BlockchainService {
         try {
             let contractAddress;
             // Determine which network we're using
-            const network = 'mainnet'; // For testing, use Sepolia
-            if (tokenType === 'USDT') {
+            const network = "mainnet"; // For testing, use Sepolia
+            if (tokenType === "USDT") {
                 contractAddress = this.USDT_CONTRACT_ADDRESS[network];
             }
             else {
@@ -365,7 +423,7 @@ class BlockchainService {
             return new ethers_1.ethers.Contract(contractAddress, this.ERC20_ABI, ethersProvider);
         }
         catch (error) {
-            console.error('Error getting token contract:', error);
+            console.error("Error getting token contract:", error);
             throw new Error(`Failed to get ${tokenType} contract`);
         }
     }
@@ -380,9 +438,9 @@ class BlockchainService {
             return await contract.decimals();
         }
         catch (error) {
-            console.error('Error getting token decimals:', error);
+            console.error("Error getting token decimals:", error);
             // Default decimals for common tokens
-            if (tokenType === 'USDT') {
+            if (tokenType === "USDT") {
                 return 6; // USDT typically uses 6 decimals
             }
             return 18; // Default to 18 decimals (like ETH)
@@ -401,26 +459,26 @@ class BlockchainService {
         try {
             console.log(`Swapping ${amount} ${fromCrypto} to ${toCrypto}`);
             // Validate crypto types
-            if ((fromCrypto !== 'ETH' && fromCrypto !== 'USDT') ||
-                (toCrypto !== 'ETH' && toCrypto !== 'USDT')) {
-                throw new Error('Only ETH and USDT swaps are supported');
+            if ((fromCrypto !== "ETH" && fromCrypto !== "USDT") ||
+                (toCrypto !== "ETH" && toCrypto !== "USDT")) {
+                throw new Error("Only ETH and USDT swaps are supported");
             }
             if (fromCrypto === toCrypto) {
-                throw new Error('Cannot swap a token for itself');
+                throw new Error("Cannot swap a token for itself");
             }
             // Create wallet from private key
             const ethersProvider = this.getEthersProvider(fromCrypto);
             const wallet = new ethers_1.ethers.Wallet(privateKey, ethersProvider);
             console.log(`Using wallet: ${wallet.address}`);
             // Get the Uniswap router contract
-            const network = 'mainnet'; // For testing
+            const network = "mainnet"; // For testing
             const routerAddress = this.UNISWAP_ROUTER_ADDRESS[network];
             const router = new ethers_1.ethers.Contract(routerAddress, this.UNISWAP_ROUTER_ABI, ethersProvider);
             // Connect wallet to router
             const connectedRouter = router.connect(wallet);
             // Set up swap parameters
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
-            if (fromCrypto === 'ETH' && toCrypto === 'USDT') {
+            if (fromCrypto === "ETH" && toCrypto === "USDT") {
                 // ETH to USDT swap
                 const amountIn = ethers_1.ethers.parseEther(amount);
                 // Check if user has enough ETH
@@ -436,12 +494,12 @@ class BlockchainService {
                 const amounts = await router.getAmountsOut(amountIn, path);
                 const expectedOutputAmount = amounts[1];
                 // Calculate minimum output with slippage
-                const slippageFactor = 1000 - (slippagePercentage * 10); // 0.5% -> 995
+                const slippageFactor = 1000 - slippagePercentage * 10; // 0.5% -> 995
                 const minOutputAmount = (expectedOutputAmount * BigInt(slippageFactor)) / 1000n;
                 console.log(`Expected USDT output: ${ethers_1.ethers.formatUnits(expectedOutputAmount, 6)}`);
                 console.log(`Minimum USDT output (with ${slippagePercentage}% slippage): ${ethers_1.ethers.formatUnits(minOutputAmount, 6)}`);
                 // Execute the swap
-                console.log('Executing ETH to USDT swap...');
+                console.log("Executing ETH to USDT swap...");
                 const tx = await connectedRouter.swapExactETHForTokens(minOutputAmount, path, wallet.address, deadline, { value: amountIn });
                 console.log(`Swap transaction sent: ${tx.hash}`);
                 // Wait for transaction to be mined
@@ -449,12 +507,12 @@ class BlockchainService {
                 console.log(`Swap confirmed in block ${receipt?.blockNumber}`);
                 return tx.hash;
             }
-            else if (fromCrypto === 'USDT' && toCrypto === 'ETH') {
+            else if (fromCrypto === "USDT" && toCrypto === "ETH") {
                 // USDT to ETH swap
-                const usdtContract = this.getTokenContract('USDT');
+                const usdtContract = this.getTokenContract("USDT");
                 const connectedUsdtContract = usdtContract.connect(wallet);
                 // Get USDT decimals
-                const decimals = await this.getTokenDecimals('USDT');
+                const decimals = await this.getTokenDecimals("USDT");
                 // Parse amount with proper decimals
                 const amountIn = ethers_1.ethers.parseUnits(amount, decimals);
                 // Check if user has enough USDT
@@ -470,17 +528,17 @@ class BlockchainService {
                 const amounts = await router.getAmountsOut(amountIn, path);
                 const expectedOutputAmount = amounts[1];
                 // Calculate minimum output with slippage
-                const slippageFactor = 1000 - (slippagePercentage * 10); // 0.5% -> 995
+                const slippageFactor = 1000 - slippagePercentage * 10; // 0.5% -> 995
                 const minOutputAmount = (expectedOutputAmount * BigInt(slippageFactor)) / 1000n;
                 console.log(`Expected ETH output: ${ethers_1.ethers.formatEther(expectedOutputAmount)}`);
                 console.log(`Minimum ETH output (with ${slippagePercentage}% slippage): ${ethers_1.ethers.formatEther(minOutputAmount)}`);
                 // Approve router to spend USDT
-                console.log('Approving USDT for swap...');
+                console.log("Approving USDT for swap...");
                 const approveTx = await connectedUsdtContract.approve(routerAddress, amountIn);
                 await approveTx.wait();
-                console.log('USDT approved for swap');
+                console.log("USDT approved for swap");
                 // Execute the swap
-                console.log('Executing USDT to ETH swap...');
+                console.log("Executing USDT to ETH swap...");
                 const tx = await connectedRouter.swapExactTokensForETH(amountIn, minOutputAmount, path, wallet.address, deadline);
                 console.log(`Swap transaction sent: ${tx.hash}`);
                 // Wait for transaction to be mined
@@ -493,8 +551,8 @@ class BlockchainService {
             }
         }
         catch (error) {
-            console.error('Error swapping crypto:', error);
-            throw new Error(`Failed to swap ${fromCrypto} to ${toCrypto}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error swapping crypto:", error);
+            throw new Error(`Failed to swap ${fromCrypto} to ${toCrypto}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -508,35 +566,41 @@ class BlockchainService {
         try {
             console.log(`Estimating swap of ${amount} ${fromCrypto} to ${toCrypto}`);
             // Validate crypto types
-            if ((fromCrypto !== 'ETH' && fromCrypto !== 'USDT') ||
-                (toCrypto !== 'ETH' && toCrypto !== 'USDT')) {
-                throw new Error('Only ETH and USDT swaps are supported');
+            if ((fromCrypto !== "ETH" && fromCrypto !== "USDT") ||
+                (toCrypto !== "ETH" && toCrypto !== "USDT")) {
+                throw new Error("Only ETH and USDT swaps are supported");
             }
             if (fromCrypto === toCrypto) {
-                throw new Error('Cannot swap a token for itself');
+                throw new Error("Cannot swap a token for itself");
             }
             // Get the Uniswap router contract
-            const network = 'sepolia'; // For testing
+            const network = "sepolia"; // For testing
             const ethersProvider = this.getEthersProvider(fromCrypto);
             const router = new ethers_1.ethers.Contract(this.UNISWAP_ROUTER_ADDRESS[network], this.UNISWAP_ROUTER_ABI, ethersProvider);
             try {
-                if (fromCrypto === 'ETH' && toCrypto === 'USDT') {
+                if (fromCrypto === "ETH" && toCrypto === "USDT") {
                     // ETH to USDT estimate
                     const amountIn = ethers_1.ethers.parseEther(amount);
                     // Create swap path: ETH -> WETH -> USDT
-                    const path = [this.WETH_ADDRESS[network], this.USDT_CONTRACT_ADDRESS[network]];
+                    const path = [
+                        this.WETH_ADDRESS[network],
+                        this.USDT_CONTRACT_ADDRESS[network],
+                    ];
                     // Get expected output amount
                     const amounts = await router.getAmountsOut(amountIn, path);
                     const expectedOutputAmount = amounts[1];
                     // Format with USDT decimals (6)
                     return ethers_1.ethers.formatUnits(expectedOutputAmount, 6);
                 }
-                else if (fromCrypto === 'USDT' && toCrypto === 'ETH') {
+                else if (fromCrypto === "USDT" && toCrypto === "ETH") {
                     // USDT to ETH estimate
-                    const decimals = await this.getTokenDecimals('USDT');
+                    const decimals = await this.getTokenDecimals("USDT");
                     const amountIn = ethers_1.ethers.parseUnits(amount, decimals);
                     // Create swap path: USDT -> WETH
-                    const path = [this.USDT_CONTRACT_ADDRESS[network], this.WETH_ADDRESS[network]];
+                    const path = [
+                        this.USDT_CONTRACT_ADDRESS[network],
+                        this.WETH_ADDRESS[network],
+                    ];
                     // Get expected output amount
                     const amounts = await router.getAmountsOut(amountIn, path);
                     const expectedOutputAmount = amounts[1];
@@ -551,15 +615,15 @@ class BlockchainService {
                 // Check for insufficient liquidity error
                 if (error instanceof Error &&
                     error.message &&
-                    error.message.includes('INSUFFICIENT_LIQUIDITY')) {
+                    error.message.includes("INSUFFICIENT_LIQUIDITY")) {
                     console.warn(`Insufficient liquidity for ${fromCrypto} to ${toCrypto} swap on testnet`);
                     // Return a mock estimate for testing purposes
-                    if (fromCrypto === 'ETH' && toCrypto === 'USDT') {
+                    if (fromCrypto === "ETH" && toCrypto === "USDT") {
                         // Mock price: 1 ETH = 2053.64 USDT
                         const ethAmount = parseFloat(amount);
                         return (ethAmount * 2053.64).toFixed(6);
                     }
-                    else if (fromCrypto === 'USDT' && toCrypto === 'ETH') {
+                    else if (fromCrypto === "USDT" && toCrypto === "ETH") {
                         // Mock price: 1800 USDT = 1 ETH
                         const usdtAmount = parseFloat(amount);
                         return (usdtAmount / 2053.64).toFixed(18);
@@ -569,8 +633,8 @@ class BlockchainService {
             }
         }
         catch (error) {
-            console.error('Error estimating swap:', error);
-            throw new Error(`Failed to estimate swap: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error estimating swap:", error);
+            throw new Error(`Failed to estimate swap: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -582,16 +646,16 @@ class BlockchainService {
     static async getWalletBalance(address, cryptoType) {
         try {
             switch (cryptoType.toUpperCase()) {
-                case 'ETH':
+                case "ETH":
                     const ethersProvider = this.getEthersProvider(cryptoType);
                     const balance = await ethersProvider.getBalance(address);
                     return ethers_1.ethers.formatEther(balance);
-                case 'BTC':
+                case "BTC":
                     return await this.getBitcoinBalance(address);
-                case 'USDT':
-                    const contract = this.getTokenContract('USDT');
+                case "USDT":
+                    const contract = this.getTokenContract("USDT");
                     const tokenBalance = await contract.balanceOf(address);
-                    const decimals = await this.getTokenDecimals('USDT');
+                    const decimals = await this.getTokenDecimals("USDT");
                     return ethers_1.ethers.formatUnits(tokenBalance, decimals);
                 default:
                     throw new Error(`Unsupported crypto type: ${cryptoType}`);
@@ -599,7 +663,7 @@ class BlockchainService {
         }
         catch (error) {
             console.error(`Error getting ${cryptoType} balance for ${address}:`, error);
-            throw new Error(`Failed to get wallet balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Failed to get wallet balance: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -611,17 +675,17 @@ class BlockchainService {
         try {
             console.log(`Getting Bitcoin balance for address: ${address}`);
             // Determine which network to use
-            const network = env_1.config.blockchain.network === 'mainnet' ? 'main' : 'test3';
+            const network = env_1.config.blockchain.network === "mainnet" ? "main" : "test3";
             // Construct the API URL
             const apiUrl = `https://api.blockcypher.com/v1/btc/${network}/addrs/${address}/balance`;
             // Add token if available
             const tokenParam = env_1.config.blockchain.blockCypherToken
                 ? `?token=${env_1.config.blockchain.blockCypherToken}`
-                : '';
+                : "";
             // Make the API request
             const response = await axios_1.default.get(`${apiUrl}${tokenParam}`);
             if (!response.data) {
-                throw new Error('No data returned from BlockCypher API');
+                throw new Error("No data returned from BlockCypher API");
             }
             // Get balance in satoshis
             const balanceSatoshis = response.data.balance || 0;
@@ -638,39 +702,44 @@ class BlockchainService {
             return totalBalance.toFixed(8);
         }
         catch (error) {
-            console.error('Error getting Bitcoin balance:', error);
+            console.error("Error getting Bitcoin balance:", error);
             if (axios_1.default.isAxiosError(error) && error.response) {
-                console.error('BlockCypher API error:', error.response.data);
+                console.error("BlockCypher API error:", error.response.data);
             }
-            throw new Error(`Failed to get Bitcoin balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Failed to get Bitcoin balance: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     static async transferEther(toAddress, amount, cryptoType) {
         try {
-            console.log('=== BLOCKCHAIN TRANSFER INITIATED ===');
-            console.log('To address:', toAddress);
-            console.log('Amount:', amount);
-            console.log('Crypto type:', cryptoType);
-            if (cryptoType === 'ETH') {
+            console.log("=== BLOCKCHAIN TRANSFER INITIATED ===");
+            console.log("To address:", toAddress);
+            console.log("Amount:", amount);
+            console.log("Crypto type:", cryptoType);
+            if (cryptoType === "ETH") {
                 // Get the appropriate provider based on crypto type
                 const provider = BlockchainService.getEthersProvider(cryptoType);
-                console.log('Using provider:', provider.getNetwork().then(network => network.name));
+                console.log("Using provider:", provider.getNetwork().then((network) => network.name));
                 // Create wallet from company private key
                 const wallet = new ethers_1.ethers.Wallet(BlockchainService.COMPANY_WALLET_PRIVATE_KEY, provider);
-                console.log('Company wallet address:', wallet.address);
+                console.log("Company wallet address:", wallet.address);
                 // Check company wallet balance
                 const balance = await provider.getBalance(wallet.address);
-                console.log('Company wallet balance:', ethers_1.ethers.formatEther(balance), 'ETH');
+                console.log("Company wallet balance:", ethers_1.ethers.formatEther(balance), "ETH");
                 // Convert amount to wei
                 const amountInWei = ethers_1.ethers.parseEther(amount);
-                console.log('Amount in wei:', amountInWei.toString());
+                console.log("Amount in wei:", amountInWei.toString());
                 // Check if we have enough balance
                 if (balance < amountInWei) {
                     throw new Error(`Insufficient balance in company wallet: ${ethers_1.ethers.formatEther(balance)} ETH`);
                 }
                 const nonce = await provider.getTransactionCount(wallet.address, "latest");
-                const gasLimit = await provider.estimateGas({ to: toAddress, value: amountInWei });
-                const gasPrice = await provider.getFeeData().then(data => data.gasPrice);
+                const gasLimit = await provider.estimateGas({
+                    to: toAddress,
+                    value: amountInWei,
+                });
+                const gasPrice = await provider
+                    .getFeeData()
+                    .then((data) => data.gasPrice);
                 const chainId = (await provider.getNetwork()).chainId;
                 // Create transaction
                 const tx = {
@@ -681,26 +750,26 @@ class BlockchainService {
                     gasPrice,
                     chainId,
                 };
-                console.log('Transaction details:', tx);
+                console.log("Transaction details:", tx);
                 // Send transaction
-                console.log('Sending transaction...');
+                console.log("Sending transaction...");
                 const txResponse = await wallet.sendTransaction(tx);
-                console.log('Transaction sent:', txResponse.hash);
+                console.log("Transaction sent:", txResponse.hash);
                 // Wait for transaction to be mined
-                console.log('Waiting for transaction to be mined...');
+                console.log("Waiting for transaction to be mined...");
                 const receipt = await txResponse.wait();
-                console.log('Transaction mined:', receipt);
-                console.log('=== BLOCKCHAIN TRANSFER COMPLETED ===');
+                console.log("Transaction mined:", receipt);
+                console.log("=== BLOCKCHAIN TRANSFER COMPLETED ===");
                 return txResponse.hash;
             }
-            else if (cryptoType === 'USDT') {
+            else if (cryptoType === "USDT") {
                 // USDT transfer logic
                 const provider = BlockchainService.getEthersProvider(cryptoType);
                 const wallet = new ethers_1.ethers.Wallet(BlockchainService.COMPANY_WALLET_PRIVATE_KEY, provider);
-                const tokenContract = this.getTokenContract('USDT');
+                const tokenContract = this.getTokenContract("USDT");
                 const connectedContract = tokenContract.connect(wallet);
                 // Get token decimals
-                const decimals = await this.getTokenDecimals('USDT');
+                const decimals = await this.getTokenDecimals("USDT");
                 // Convert amount to token units
                 const tokenAmount = ethers_1.ethers.parseUnits(amount, decimals);
                 // Check token balance
@@ -711,12 +780,12 @@ class BlockchainService {
                 // Estimate gas for token transfer
                 const gasEstimate = await connectedContract.estimateGas.transfer(toAddress, tokenAmount);
                 // Add 20% buffer to gas estimate
-                const gasLimit = gasEstimate + (gasEstimate / 5n);
+                const gasLimit = gasEstimate + gasEstimate / 5n;
                 // Send token transfer transaction
                 console.log(`Sending ${amount} USDT to ${toAddress} with gas limit ${gasLimit}`);
                 const transaction = await connectedContract.transfer(toAddress, tokenAmount, { gasLimit });
                 console.log(`Transaction sent! Hash: ${transaction.hash}`);
-                console.log('Waiting for transaction confirmation...');
+                console.log("Waiting for transaction confirmation...");
                 // Wait for the transaction to be mined
                 const receipt = await transaction.wait();
                 console.log(`Transaction confirmed in block ${receipt?.blockNumber}`);
@@ -727,8 +796,43 @@ class BlockchainService {
             }
         }
         catch (error) {
-            console.error('Error transferring crypto:', error);
-            throw new Error(`Failed to transfer crypto: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error transferring crypto:", error);
+            throw new Error(`Failed to transfer crypto: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+    }
+    static async transferTRX(toAddress, amount) {
+        try {
+            console.log("=== TRON TRANSFER INITIATED ===");
+            console.log("To address:", toAddress);
+            console.log("Amount:", amount);
+            // Initialize TronWeb (replace with your TronWeb configuration)
+            // Validate the address
+            if (!tronWeb.isAddress(toAddress)) {
+                throw new Error(`Invalid TRX address: ${toAddress}`);
+            }
+            // Convert amount to sun (1 TRX = 1,000,000 sun)
+            const amountInSun = tronWeb.toSun(Number(amount));
+            // Get company wallet balance
+            const balanceInSun = await tronWeb.trx.getBalance(tronWeb.address.fromPrivateKey(BlockchainService.COMPANY_WALLET_PRIVATE_KEY));
+            console.log("Company wallet balance:", tronWeb.fromSun(balanceInSun), "TRX");
+            // Check if we have enough balance
+            if (Number(balanceInSun) < Number(amountInSun)) {
+                throw new Error(`Insufficient balance in company wallet: ${tronWeb.fromSun(balanceInSun)} TRX`);
+            }
+            const transferOption = {
+                privateKey: BlockchainService.COMPANY_WALLET_PRIVATE_KEY,
+                address: BlockchainService.COMPANY_WALLET_ADDRESS,
+            };
+            // Send TRX transaction
+            console.log("Sending TRX transaction...");
+            const transaction = await tronWeb.trx.sendTransaction(toAddress, Number(amountInSun), transferOption);
+            console.log("Transaction sent:", transaction.txid);
+            console.log("=== TRON TRANSFER COMPLETED ===");
+            return transaction.txid;
+        }
+        catch (error) {
+            console.error("Error transferring TRX:", error);
+            throw new Error(`Failed to transfer TRX: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -747,7 +851,7 @@ class BlockchainService {
             const fromAddress = wallet.address;
             // Get company wallet address
             const toAddress = this.COMPANY_WALLET_ADDRESS;
-            if (cryptoType === 'ETH') {
+            if (cryptoType === "ETH") {
                 // Convert amount to wei
                 const amountWei = ethers_1.ethers.parseEther(amount);
                 // Check user balance
@@ -758,7 +862,7 @@ class BlockchainService {
                 // Estimate gas
                 const gasPrice = await ethersProvider.getFeeData();
                 const gasLimit = 21000n; // Standard ETH transfer gas limit
-                const gasCost = gasLimit * (gasPrice.gasPrice ?? ethers_1.ethers.parseUnits('50', 'gwei'));
+                const gasCost = gasLimit * (gasPrice.gasPrice ?? ethers_1.ethers.parseUnits("50", "gwei"));
                 // Ensure user has enough ETH for gas
                 if (balance < amountWei + gasCost) {
                     throw new Error(`Insufficient ETH balance for gas. Required: ${amount} + gas, Available: ${ethers_1.ethers.formatEther(balance)}`);
@@ -767,7 +871,7 @@ class BlockchainService {
                 const tx = await wallet.sendTransaction({
                     to: toAddress,
                     value: amountWei,
-                    gasLimit
+                    gasLimit,
                 });
                 console.log(`ETH transfer initiated: ${tx.hash}`);
                 // Wait for transaction to be mined
@@ -775,16 +879,16 @@ class BlockchainService {
                 console.log(`ETH transfer confirmed in block ${receipt?.blockNumber}`);
                 return tx.hash;
             }
-            else if (cryptoType === 'USDT') {
+            else if (cryptoType === "USDT") {
                 // Get USDT contract
-                const network = 'sepolia'; // For testing
+                const network = "sepolia"; // For testing
                 const usdtAddress = this.USDT_CONTRACT_ADDRESS[network];
                 // Create contract instance
                 const usdtContract = new ethers_1.ethers.Contract(usdtAddress, this.ERC20_ABI, ethersProvider);
                 // Connect wallet to contract
                 const connectedContract = usdtContract.connect(wallet);
                 // Get token decimals
-                const decimals = await this.getTokenDecimals('USDT');
+                const decimals = await this.getTokenDecimals("USDT");
                 // Convert amount to token units
                 const tokenAmount = ethers_1.ethers.parseUnits(amount, decimals);
                 // Check user balance
@@ -805,8 +909,8 @@ class BlockchainService {
             }
         }
         catch (error) {
-            console.error('Error transferring crypto to company wallet:', error);
-            throw new Error(`Failed to transfer ${cryptoType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error("Error transferring crypto to company wallet:", error);
+            throw new Error(`Failed to transfer ${cryptoType}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -819,14 +923,14 @@ class BlockchainService {
             // In a real implementation, this would calculate the actual gas fee
             // For now, return fixed values based on crypto type
             switch (cryptoType.toUpperCase()) {
-                case 'ETH':
-                    return '0.0001';
-                case 'BTC':
-                    return '0.00005';
-                case 'USDT':
-                    return '0.00002';
+                case "ETH":
+                    return "0.0001";
+                case "BTC":
+                    return "0.00005";
+                case "USDT":
+                    return "0.00002";
                 default:
-                    return '0.0001';
+                    return "0.0001";
             }
         }
         catch (error) {
@@ -843,22 +947,24 @@ class BlockchainService {
         try {
             // Implementation depends on the blockchain library you're using
             // For Ethereum using ethers.js:
-            if (crypto_type === 'ETH') {
+            if (crypto_type === "ETH") {
                 const wallet = ethers_1.ethers.Wallet.createRandom();
                 return {
                     address: wallet.address,
-                    privateKey: wallet.privateKey
+                    privateKey: wallet.privateKey,
                 };
             }
             // For other crypto types, implement accordingly
             // For now, return a mock wallet for other types
             return {
-                address: `0x${crypto_type}_${Math.random().toString(36).substring(2, 15)}`,
-                privateKey: `0x${Math.random().toString(36).substring(2, 15)}`
+                address: `0x${crypto_type}_${Math.random()
+                    .toString(36)
+                    .substring(2, 15)}`,
+                privateKey: `0x${Math.random().toString(36).substring(2, 15)}`,
             };
         }
         catch (error) {
-            console.error('Error creating wallet:', error);
+            console.error("Error creating wallet:", error);
             throw new Error(`Failed to create ${crypto_type} wallet`);
         }
     }
@@ -877,30 +983,30 @@ class BlockchainService {
                 address: response.data.address,
                 private: response.data.private,
                 public: response.data.public,
-                wif: response.data.wif
+                wif: response.data.wif,
             };
         }
         catch (error) {
-            console.error('Error creating Bitcoin wallet:', error);
+            console.error("Error creating Bitcoin wallet:", error);
             if (axios_1.default.isAxiosError(error) && error.response) {
-                console.error('BlockCypher API error:', error.response.data);
+                console.error("BlockCypher API error:", error.response.data);
             }
-            throw new Error('Failed to create Bitcoin wallet');
+            throw new Error("Failed to create Bitcoin wallet");
         }
     }
     /**
-   * Send Bitcoin from one wallet to another using bitcore-lib
-   * @param fromPrivateKey Sender's private key (WIF format)
-   * @param toAddress Receiver's BTC address
-   * @param amount Amount in BTC
-   * @returns Transaction details
-   */
+     * Send Bitcoin from one wallet to another using bitcore-lib
+     * @param fromPrivateKey Sender's private key (WIF format)
+     * @param toAddress Receiver's BTC address
+     * @param amount Amount in BTC
+     * @returns Transaction details
+     */
     static async sendBitcoin(toAddress, amount) {
         try {
             // Import bitcore-lib
-            const bitcore = require('bitcore-lib');
+            const bitcore = require("bitcore-lib");
             // Network selection
-            const network = env_1.config.blockchain.network === 'mainnet'
+            const network = env_1.config.blockchain.network === "mainnet"
                 ? bitcore.Networks.livenet
                 : bitcore.Networks.testnet;
             const fromPrivateKey = "";
@@ -911,7 +1017,7 @@ class BlockchainService {
             // Convert BTC to satoshis
             const satoshis = Math.floor(parseFloat(amount) * 100000000);
             // Get UTXOs for the address
-            const utxosUrl = env_1.config.blockchain.network === 'mainnet'
+            const utxosUrl = env_1.config.blockchain.network === "mainnet"
                 ? `https://api.blockcypher.com/v1/btc/main/addrs/${fromAddress}?unspentOnly=true&token=${env_1.config.blockchain.blockCypherToken}`
                 : `https://api.blockcypher.com/v1/btc/test3/addrs/${fromAddress}?unspentOnly=true&token=${env_1.config.blockchain.blockCypherToken}`;
             const utxoResponse = await axios_1.default.get(utxosUrl);
@@ -925,7 +1031,7 @@ class BlockchainService {
                     outputIndex: utxo.tx_output_n,
                     address: fromAddress,
                     script: new bitcore.Script(new bitcore.Address(fromAddress, network)).toHex(),
-                    satoshis: utxo.value
+                    satoshis: utxo.value,
                 };
             });
             // Calculate total available balance
@@ -943,72 +1049,72 @@ class BlockchainService {
             // Verify transaction is valid
             const isValid = transaction.isFullySigned() && transaction.verify();
             if (!isValid) {
-                throw new Error('Transaction validation failed');
+                throw new Error("Transaction validation failed");
             }
             // Get transaction as hex string
             const txHex = transaction.serialize();
             // Broadcast transaction
-            const broadcastUrl = env_1.config.blockchain.network === 'mainnet'
-                ? 'https://api.blockcypher.com/v1/btc/main/txs/push'
-                : 'https://api.blockcypher.com/v1/btc/test3/txs/push';
+            const broadcastUrl = env_1.config.blockchain.network === "mainnet"
+                ? "https://api.blockcypher.com/v1/btc/main/txs/push"
+                : "https://api.blockcypher.com/v1/btc/test3/txs/push";
             const broadcastResponse = await axios_1.default.post(broadcastUrl, {
-                tx: txHex
+                tx: txHex,
             });
             const txHash = broadcastResponse.data.tx.hash;
-            const explorerUrl = env_1.config.blockchain.network === 'mainnet'
+            const explorerUrl = env_1.config.blockchain.network === "mainnet"
                 ? `https://www.blockchain.com/btc/tx/${txHash}`
                 : `https://www.blockchain.com/btc-testnet/tx/${txHash}`;
             console.log(`Bitcoin transaction sent! TX Hash: ${txHash}`);
             return {
                 txHash,
-                txUrl: explorerUrl
+                txUrl: explorerUrl,
             };
         }
         catch (error) {
-            console.error('Error sending Bitcoin:', error);
+            console.error("Error sending Bitcoin:", error);
             if (axios_1.default.isAxiosError(error) && error.response) {
-                console.error('API error:', error.response.data);
+                console.error("API error:", error.response.data);
             }
-            throw new Error(`Failed to send Bitcoin: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Failed to send Bitcoin: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
 }
 exports.BlockchainService = BlockchainService;
-BlockchainService.provider = new ethers_1.ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/_9Cg-dFoye2kHGgkOHajuOWCVGiO0_m1');
+BlockchainService.provider = new ethers_1.ethers.JsonRpcProvider("https://eth-mainnet.g.alchemy.com/v2/_9Cg-dFoye2kHGgkOHajuOWCVGiO0_m1");
 // Add static properties
 BlockchainService.COMPANY_WALLET_PRIVATE_KEY = env_1.config.blockchain.companyWallet.privateKey;
 BlockchainService.COMPANY_WALLET_ADDRESS = env_1.config.blockchain.companyWallet.address;
 //private static readonly COMPANY_WALLET_PRIVATE_KEY = config.blockchain.companyWallet.privateKey;
 // Add USDT contract information
 BlockchainService.USDT_CONTRACT_ADDRESS = {
-    mainnet: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-    sepolia: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06' // This is a test USDT on Sepolia
+    mainnet: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    sepolia: "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06", // This is a test USDT on Sepolia
 };
 // ERC-20 ABI for token transfers
 BlockchainService.ERC20_ABI = [
     // Transfer function
-    'function transfer(address to, uint256 amount) returns (bool)',
+    "function transfer(address to, uint256 amount) returns (bool)",
     // Balance function
-    'function balanceOf(address owner) view returns (uint256)',
+    "function balanceOf(address owner) view returns (uint256)",
     // Decimals function
-    'function decimals() view returns (uint8)',
+    "function decimals() view returns (uint8)",
     // Symbol function
-    'function symbol() view returns (string)'
+    "function symbol() view returns (string)",
 ];
 // Add these constants for swap functionality
 BlockchainService.UNISWAP_ROUTER_ADDRESS = {
-    mainnet: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
-    sepolia: '0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008' // Uniswap V2 Router on Sepolia
+    mainnet: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    sepolia: "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008", // Uniswap V2 Router on Sepolia
 };
 BlockchainService.WETH_ADDRESS = {
-    mainnet: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-    sepolia: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14' // Wrapped ETH on Sepolia
+    mainnet: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    sepolia: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", // Wrapped ETH on Sepolia
 };
 // Uniswap Router ABI (simplified for swapping)
 BlockchainService.UNISWAP_ROUTER_ABI = [
-    'function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)',
-    'function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
-    'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)'
+    "function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)",
+    "function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)",
+    "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)",
 ];
 // Initialize the service when the module is loaded
 exports.blockchainService = new BlockchainService();

@@ -10,6 +10,9 @@ const ethers_1 = require("ethers");
 const blockcypher_1 = require("../../config/blockcypher");
 const databaseService_1 = require("./databaseService");
 const blockchainService_1 = require("./blockchainService");
+const tronweb_1 = require("tronweb");
+const helper_1 = require("../utils/helper");
+console.log("TronWeb=========", tronweb_1.TronWeb);
 class WalletService {
     static async getUserWallet(userId, walletAddress, walletPrivateKey) {
         // Simply return the provided wallet information
@@ -60,6 +63,37 @@ class WalletService {
         }
     }
     /**
+    * Generate a new Trons wallet
+    * @returns Object containing address and private key
+    */
+    static async generateTronWallet() {
+        try {
+            const tronWeb = new tronweb_1.TronWeb({
+                fullHost: 'https://api.trongrid.io',
+            });
+            const response = await tronWeb.createAccount();
+            console.log("Tron Address:", response.address.base58);
+            console.log("Private Key:", response.privateKey);
+            if (response && response.address.base58 && response.privateKey) {
+                return {
+                    address: response.address.base58,
+                    privateKey: response.privateKey
+                };
+            }
+            throw new Error('Invalid response from Trons');
+        }
+        catch (error) {
+            console.log('Error creating wallet for user:', error);
+            // Fallback to ethers.js if Trons fails
+            const wallet = ethers_1.ethers.Wallet.createRandom();
+            return {
+                address: wallet.address,
+                privateKey: wallet.privateKey
+            };
+        }
+    }
+    ;
+    /**
      * Create a new wallet for a user
      * @param userId User ID
      * @param cryptoType Cryptocurrency type
@@ -74,7 +108,8 @@ class WalletService {
                 throw new Error('User not found');
             }
             // Generate a new wallet using BlockCypher
-            const { address, privateKey } = await this.generateWallet();
+            const { address, privateKey } = cryptoType === "TRX" ? await this.generateTronWallet() : await this.generateWallet();
+            const encryptPrivateKey = (0, helper_1.encrypt)(privateKey);
             // Check if this is the first wallet for this crypto type
             const userWallets = await databaseService_1.DatabaseService.getUserWallets(userId);
             const isFirstOfType = !userWallets.some(w => w.crypto_type === cryptoType);
@@ -85,7 +120,7 @@ class WalletService {
                 crypto_type: cryptoType,
                 is_primary: isFirstOfType,
                 label: label || `${cryptoType} Wallet`,
-                private_key: privateKey // Note: In production, encrypt this or use a different approach
+                private_key: encryptPrivateKey
             });
             return newWallet;
         }
@@ -202,6 +237,39 @@ class WalletService {
         }
         catch (error) {
             console.error('Error verifying address:', error);
+            return false;
+        }
+    }
+    static async verifyTronAddress(address) {
+        try {
+            const tronWeb = new tronweb_1.TronWeb({
+                fullHost: 'https://api.trongrid.io',
+            });
+            // Step 1: Validate the address format using TronWeb
+            if (!tronWeb.isAddress(address)) {
+                return false;
+            }
+            // Step 2: Verify the address on the Tron blockchain (optional)
+            try {
+                const account = await tronWeb.trx.getAccount(address);
+                return !!account && !!account.address;
+            }
+            catch (error) {
+                // If the address is not found on the blockchain, it might still be valid
+                if (error &&
+                    typeof error === 'object' &&
+                    'message' in error &&
+                    typeof error.message === 'string' &&
+                    error.message.includes('account not found')) {
+                    return true; // Address format is valid but not found on blockchain
+                }
+                console.error('Tron address verification failed:', error);
+                // Fall back to TronWeb validation only
+                return tronWeb.isAddress(address);
+            }
+        }
+        catch (error) {
+            console.error('Error verifying Tron address:', error);
             return false;
         }
     }

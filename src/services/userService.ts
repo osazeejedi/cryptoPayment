@@ -124,6 +124,12 @@ export class UserService {
         'USDT',
         'Default USDT Wallet'
       );
+
+      const trxWallet = await WalletService.createWalletForUser(
+        userData.id,
+        'TRX',
+        'Default TRX Wallet'
+      );
       
       return {
         user,
@@ -134,6 +140,10 @@ export class UserService {
           } : null,
           usdtWallet ? {
             ...usdtWallet,
+            private_key: undefined // Don't expose private key
+          } : null,
+          trxWallet ? {
+            ...trxWallet,
             private_key: undefined // Don't expose private key
           } : null
         ].filter(Boolean)

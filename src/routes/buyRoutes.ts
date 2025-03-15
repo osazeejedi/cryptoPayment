@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { BuyController } from '../controllers/buyController';
+import { authenticateUser } from '../middleware/auth';
 
 const router = Router();
 
@@ -24,7 +25,7 @@ router.get('/success', BuyController.handlePaymentSuccess);
 router.post('/transfer', BuyController.transferCrypto);
 
 // Create virtual account for payment
-router.post('/virtual-account', BuyController.createVirtualAccount);
+router.post('/virtual-account', authenticateUser, BuyController.createVirtualAccount);
 
 // // Add a test route at root level
 // router.get('/test', (req: Request, res: Response) => {

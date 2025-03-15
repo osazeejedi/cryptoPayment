@@ -744,6 +744,7 @@ export class BuyController {
    */
   static async createVirtualAccount(req: Request, res: Response): Promise<void> {
     try {
+      const userId = req.user.id;
       const {
         account_name,
         bank_code,
@@ -767,7 +768,8 @@ export class BuyController {
         bank_code,
         customer_name,
         customer_email,
-        bvn
+        bvn,
+        userId
       });
 
       res.status(200).json({

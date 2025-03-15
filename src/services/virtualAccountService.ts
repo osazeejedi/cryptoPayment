@@ -1,6 +1,7 @@
-import axios from 'axios';
-import { config } from '../../config/env';
-import { v4 as uuidv4 } from 'uuid';
+import axios from "axios";
+import { config } from "../../config/env";
+import { v4 as uuidv4 } from "uuid";
+import { DatabaseService } from "./databaseService";
 
 interface VirtualAccountRequest {
   account_name: string;
@@ -73,21 +74,21 @@ interface VirtualAccountMapping {
 }
 
 export class VirtualAccountService {
-  private static BASE_URL = 'https://api.korapay.com/merchant/api/v1';
+  private static BASE_URL = "https://api.korapay.com/merchant/api/v1";
   private static SECRET_KEY = config.payment.korapay.secretKey;
   private static accountMappings: Record<string, VirtualAccountMapping> = {
-    'customer005': {
-      crypto_type: 'ETH',
-      wallet_address: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'
+    customer005: {
+      crypto_type: "ETH",
+      wallet_address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
     },
-    'customer006': {
-      crypto_type: 'TRX',
-      wallet_address: 'TJYeasTPa6gpEEfYqJFTAJmfUvHJPdQS1V' // Example Tron address
+    customer006: {
+      crypto_type: "TRX",
+      wallet_address: "TJYeasTPa6gpEEfYqJFTAJmfUvHJPdQS1V", // Example Tron address
     },
-    'customer007': {
-      crypto_type: 'USDT_TRC20',
-      wallet_address: 'TJYeasTPa6gpEEfYqJFTAJmfUvHJPdQS1V' // Example Tron address
-    }
+    customer007: {
+      crypto_type: "USDT_TRC20",
+      wallet_address: "TJYeasTPa6gpEEfYqJFTAJmfUvHJPdQS1V", // Example Tron address
+    },
     // Add more mappings as needed
   };
 
@@ -100,11 +101,12 @@ export class VirtualAccountService {
     customer_name: string;
     customer_email: string;
     bvn: string;
+    userId: string;
   }) {
     try {
       // Validate BVN
       if (!data.bvn || data.bvn.length !== 11) {
-        throw new Error('Valid BVN is required');
+        throw new Error("Valid BVN is required");
       }
 
       const reference = `VA-${uuidv4()}`;
@@ -116,34 +118,59 @@ export class VirtualAccountService {
         bank_code: data.bank_code,
         customer: {
           name: data.customer_name,
-          email: data.customer_email
+          email: data.customer_email,
         },
         kyc: {
-          bvn: data.bvn
-        }
+          bvn: data.bvn,
+        },
       };
 
-      console.log('Creating virtual account with payload:', JSON.stringify(payload, null, 2));
+      console.log(
+        "Creating virtual account with payload:",
+        JSON.stringify(payload, null, 2)
+      );
 
       const response = await axios.post(
         `${this.BASE_URL}/virtual-bank-account`,
         payload,
         {
           headers: {
-            'Authorization': `Bearer ${this.SECRET_KEY}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${this.SECRET_KEY}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
+      await DatabaseService.supabase
+        .from("virtualAccounts")
+        .insert([
+          {
+            id: data.userId,
+            account_number: response.data.data.account_number,
+            bank_code: response.data.data.bank_code,
+            bank_name: response.data.data.bank_name,
+            account_reference: response.data.data.account_reference,
+            unique_id: response.data.data.unique_id,
+            account_status: response.data.data.account_status,
+            created_at: response.data.data.created_at,
+            currency: response.data.data.currency,
+          },
+        ])
+        .select()
+        .single();
+
       return response.data.data;
     } catch (error) {
-      console.error('Error creating virtual account:', error);
+      console.error("Error creating virtual account:", error);
       if (axios.isAxiosError(error) && error.response) {
-        console.error('Korapay API error:', error.response.data);
-        throw new Error(`Failed to create virtual account: ${JSON.stringify(error.response.data)}`);
+        console.error("Korapay API error:", error.response.data);
+        throw new Error(
+          `Failed to create virtual account: ${JSON.stringify(
+            error.response.data
+          )}`
+        );
       }
-      throw new Error('Failed to create virtual account');
+      throw new Error("Failed to create virtual account");
     }
   }
 
@@ -156,43 +183,51 @@ export class VirtualAccountService {
         `${this.BASE_URL}/transactions/reference/${reference}`,
         {
           headers: {
-            'Authorization': `Bearer ${this.SECRET_KEY}`
-          }
+            Authorization: `Bearer ${this.SECRET_KEY}`,
+          },
         }
       );
 
       return response.data.data;
     } catch (error) {
-      console.error('Error verifying transaction:', error);
-      throw new Error('Failed to verify transaction');
+      console.error("Error verifying transaction:", error);
+      throw new Error("Failed to verify transaction");
     }
   }
 
   /**
    * Get payment details for a virtual account transaction
    */
-  static async getPaymentDetails(reference: string): Promise<ChargeQueryResponse> {
+  static async getPaymentDetails(
+    reference: string
+  ): Promise<ChargeQueryResponse> {
     try {
       const response = await axios.get(
         `${this.BASE_URL}/charges/${reference}`,
         {
           headers: {
-            'Authorization': `Bearer ${this.SECRET_KEY}`
-          }
+            Authorization: `Bearer ${this.SECRET_KEY}`,
+          },
         }
       );
 
       return response.data;
     } catch (error) {
-      console.error('Error getting payment details:', error);
+      console.error("Error getting payment details:", error);
       if (axios.isAxiosError(error) && error.response) {
-        throw new Error(`Failed to get payment details: ${JSON.stringify(error.response.data)}`);
+        throw new Error(
+          `Failed to get payment details: ${JSON.stringify(
+            error.response.data
+          )}`
+        );
       }
-      throw new Error('Failed to get payment details');
+      throw new Error("Failed to get payment details");
     }
   }
 
-  static getAccountMapping(accountReference: string): VirtualAccountMapping | null {
+  static getAccountMapping(
+    accountReference: string
+  ): VirtualAccountMapping | null {
     return this.accountMappings[accountReference] || null;
   }
-} 
+}
